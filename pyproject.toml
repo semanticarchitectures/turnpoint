@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "turnpoint"
+version = "0.0.1"
+description = "Open aircrew mission planning software, built for AI agents first. Not for operational use."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.11"
+authors = [{ name = "Semantic Architectures" }]
+keywords = ["mission planning", "gis", "aviation", "mcp", "agents"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: GIS",
+]
+dependencies = [
+  "geographiclib>=2.0",
+  "mcp>=2,<3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "pre-commit>=3"]
+
+[project.scripts]
+turnpoint-mcp = "turnpoint.mcp_server.server:main"
+
+[project.urls]
+Repository = "https://github.com/semanticarchitectures/turnpoint"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/turnpoint"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

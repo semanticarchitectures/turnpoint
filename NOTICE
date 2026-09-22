@@ -1,0 +1,12 @@
+Turnpoint
+Copyright 2026 Semantic Architectures
+
+This product is licensed under the Apache License, Version 2.0.
+
+Turnpoint is an independent project. It is not affiliated with, endorsed by,
+or derived from FalconView. FalconView is a registered trademark of the
+Georgia Tech Research Corporation. No FalconView source code was consulted
+in the making of this software; see CLEAN_ROOM.md.
+
+Third-party components and data are recorded in docs/THIRD_PARTY.md with
+their licenses. Add an entry there before adding any dependency or data set.
