@@ -76,15 +76,17 @@ This satisfies the "Provenance" agent-interface property in
 `docs/PLAN.md`: "every plan change records the actor and the tool call
 that made it."
 
+### Altitude along a leg
+
+`terrain_clear` (`src/turnpoint/terrain/clearance.py`) interpolates
+altitude **linearly by distance** between a leg's two turnpoints — the
+standard assumption absent a separate climb/descent profile, and the plan
+model has none in v1 (see below). Every turnpoint on a route being
+clearance-checked must have `altitude_ft` set; a `None` anywhere raises,
+rather than being silently treated as ground level or skipped.
+
 ## Open gaps
 
-- Multi-leg altitude changes (climb/descent between two turnpoints with
-  different altitudes) are not modeled in v1 — `terrain_clear` (Phase 1,
-  `src/turnpoint/terrain`) will need to decide whether to interpolate
-  altitude linearly along a leg or treat the leg's altitude as the lower
-  (more conservative) endpoint until a real requirement forces the choice.
-  Flagging here rather than guessing; resolve when `terrain.clearance` is
-  implemented.
 - No units-of-measure abstraction: altitude is hardcoded feet, distance
   hardcoded nautical miles, matching `geodesy`'s existing convention
   (`METERS_PER_NM`). Revisit only if a format import needs a different
