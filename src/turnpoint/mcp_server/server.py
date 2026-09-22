@@ -6,6 +6,7 @@ versions used, so that agent plans can be replayed and audited (AGENTS.md, secti
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import Any
 
 from mcp.server.mcpserver import MCPServer
@@ -15,8 +16,29 @@ from turnpoint.core import Route, Turnpoint, meta
 from turnpoint.geodesy import METERS_PER_NM
 from turnpoint.geodesy import destination_point as _destination_point
 from turnpoint.geodesy import range_bearing as _range_bearing
+from turnpoint.store import PlanStore
+from turnpoint.terrain import DEFAULT_SAMPLE_INTERVAL_NM, METERS_PER_FT
+from turnpoint.terrain import elevation_m as _elevation_m
+from turnpoint.terrain import terrain_clear as _terrain_clear
 
 mcp = MCPServer("turnpoint", instructions=NOT_FOR_OPERATIONAL_USE, version=__version__)
+
+# In-memory for Phase 1: no requirement yet for plans to survive a server
+# restart. Swap for a file path (docs/specs/plan-model.md) when one exists.
+_store = PlanStore()
+
+
+def _turnpoints_from_dicts(turnpoints: list[dict[str, Any]]) -> list[Turnpoint]:
+    """Parse ``{"name", "lat", "lon", "altitude_ft"}`` dicts into Turnpoints."""
+    return [
+        Turnpoint(
+            str(t["name"]),
+            float(t["lat"]),
+            float(t["lon"]),
+            None if t.get("altitude_ft") is None else float(t["altitude_ft"]),
+        )
+        for t in turnpoints
+    ]
 
 
 @mcp.tool()
@@ -48,22 +70,12 @@ def compute_route_legs(
     """Leg distances, true courses and times for an ordered list of turnpoints.
 
     Each turnpoint is ``{"name": str, "lat": float, "lon": float,
-    "altitude_ft": float | None}``; ``altitude_ft`` is optional.
+    "altitude_ft": float | None}``; ``altitude_ft`` is optional. Stateless —
+    does not persist a plan; use ``create_plan`` for that.
     """
     if len(turnpoints) < 2:
         raise ValueError("a route needs at least two turnpoints")
-    route = Route(
-        "adhoc",
-        [
-            Turnpoint(
-                str(t["name"]),
-                float(t["lat"]),
-                float(t["lon"]),
-                None if t.get("altitude_ft") is None else float(t["altitude_ft"]),
-            )
-            for t in turnpoints
-        ],
-    )
+    route = Route("adhoc", _turnpoints_from_dicts(turnpoints))
     legs = route.legs(groundspeed_kt)
     return {
         "legs": [leg.__dict__ for leg in legs],
@@ -72,6 +84,82 @@ def compute_route_legs(
             None if groundspeed_kt is None else sum(leg.ete_min or 0.0 for leg in legs)
         ),
         "meta": meta(),
+    }
+
+
+@mcp.tool()
+def create_plan(name: str, turnpoints: list[dict[str, Any]], actor: str) -> dict[str, Any]:
+    """Create and persist a plan (docs/specs/plan-model.md).
+
+    Each turnpoint is ``{"name": str, "lat": float, "lon": float,
+    "altitude_ft": float | None}``. ``actor`` is required and recorded on
+    the plan's provenance event — never inferred.
+    """
+    plan = _store.create_plan(
+        name, _turnpoints_from_dicts(turnpoints), actor=actor, tool_call="create_plan"
+    )
+    return {"plan": asdict(plan), "meta": meta()}
+
+
+@mcp.tool()
+def get_plan(plan_id: str) -> dict[str, Any]:
+    """Fetch a persisted plan by id, with its computed legs."""
+    plan = _store.get_plan(plan_id)
+    legs = _store.to_route(plan_id).legs()
+    return {"plan": asdict(plan), "legs": [leg.__dict__ for leg in legs], "meta": meta()}
+
+
+@mcp.tool()
+def list_plans() -> dict[str, Any]:
+    """List every persisted plan."""
+    return {"plans": [asdict(p) for p in _store.list_plans()], "meta": meta()}
+
+
+@mcp.tool()
+def get_elevation(lat: float, lon: float, dted_source: str) -> dict[str, Any]:
+    """Elevation at a point from a named elevation raster (DTED, GeoTIFF or COG)."""
+    value_m = _elevation_m(lat, lon, dted_source)
+    return {
+        "elevation_m": value_m,
+        "elevation_ft": value_m / METERS_PER_FT,
+        "meta": meta(dted_source=dted_source),
+    }
+
+
+@mcp.tool()
+def check_terrain_clearance(
+    plan_id: str,
+    clearance_margin_ft: float,
+    dted_source: str,
+    sample_interval_nm: float = DEFAULT_SAMPLE_INTERVAL_NM,
+) -> dict[str, Any]:
+    """Check whether a persisted plan clears terrain by clearance_margin_ft.
+
+    Every turnpoint on the plan must have ``altitude_ft`` set (see
+    ``create_plan``). ``clearance_margin_ft`` is required — Turnpoint
+    asserts no real-world minimum-obstacle-clearance value of its own.
+    """
+    route = _store.to_route(plan_id)
+    report = _terrain_clear(
+        route,
+        clearance_margin_ft=clearance_margin_ft,
+        dted_source=dted_source,
+        sample_interval_nm=sample_interval_nm,
+    )
+    return {
+        "clear": report.clear,
+        "clearance_margin_ft": report.clearance_margin_ft,
+        "legs": [
+            {
+                "from_name": leg.from_name,
+                "to_name": leg.to_name,
+                "min_clearance_ft": leg.min_clearance_ft,
+                "clear": leg.clear,
+            }
+            for leg in report.legs
+        ],
+        "violations": [asdict(v) for v in report.violations],
+        "meta": meta(dted_source=report.dted_source),
     }
 
 

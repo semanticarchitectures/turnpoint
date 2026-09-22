@@ -1,52 +1,18 @@
-"""Terrain tests use small synthetic GeoTIFF fixtures, never real DTED
-files, per the roadmap's clean-data intent (docs/decisions/0009)."""
+"""Terrain tests use the synthetic DEM fixture from conftest.py, never
+real DTED files, per the roadmap's clean-data intent (docs/decisions/0009)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pytest
-import rasterio
-from rasterio.transform import from_origin
 
 from turnpoint.core.route import Route, Turnpoint
 from turnpoint.terrain import elevation_m, terrain_clear
 
+# Must match conftest.py's synthetic DEM fixture.
 BASELINE_M = 100.0
 HILL_M = 3000.0
-RESOLUTION_DEG = 0.01
-GRID_SIZE = 100  # 1deg x 1deg at 0.01deg resolution
-
-
-def _synthetic_dem(path: Path) -> Path:
-    """A 1x1 degree flat plain with a square hill in the middle."""
-    lats = 1.0 - (np.arange(GRID_SIZE) + 0.5) * RESOLUTION_DEG
-    lons = (np.arange(GRID_SIZE) + 0.5) * RESOLUTION_DEG
-    lat_grid, lon_grid = np.meshgrid(lats, lons, indexing="ij")
-    data = np.full((GRID_SIZE, GRID_SIZE), BASELINE_M, dtype="float32")
-    hill = (lat_grid >= 0.45) & (lat_grid <= 0.55) & (lon_grid >= 0.45) & (lon_grid <= 0.55)
-    data[hill] = HILL_M
-    transform = from_origin(0.0, 1.0, RESOLUTION_DEG, RESOLUTION_DEG)
-    with rasterio.open(
-        path,
-        "w",
-        driver="GTiff",
-        height=GRID_SIZE,
-        width=GRID_SIZE,
-        count=1,
-        dtype="float32",
-        crs="EPSG:4326",
-        transform=transform,
-        nodata=-9999.0,
-    ) as ds:
-        ds.write(data, 1)
-    return path
-
-
-@pytest.fixture
-def dem(tmp_path: Path) -> Path:
-    return _synthetic_dem(tmp_path / "dem.tif")
 
 
 def test_elevation_on_flat_ground(dem: Path):
