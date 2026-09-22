@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.8
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: check-markings
+        name: check classification/distribution markings
+        entry: python scripts/check_markings.py
+        language: system
+        pass_filenames: true
