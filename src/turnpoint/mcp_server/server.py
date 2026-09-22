@@ -11,22 +11,12 @@ from typing import Any
 from mcp.server.mcpserver import MCPServer
 
 from turnpoint import NOT_FOR_OPERATIONAL_USE, __version__
-from turnpoint.core import Route, Turnpoint
-from turnpoint.geodesy import DATUM, METERS_PER_NM
+from turnpoint.core import Route, Turnpoint, meta
+from turnpoint.geodesy import METERS_PER_NM
 from turnpoint.geodesy import destination_point as _destination_point
 from turnpoint.geodesy import range_bearing as _range_bearing
 
 mcp = MCPServer("turnpoint", instructions=NOT_FOR_OPERATIONAL_USE, version=__version__)
-
-
-def _meta() -> dict[str, Any]:
-    return {
-        "turnpoint_version": __version__,
-        "datum": DATUM,
-        "geodesic_model": "GeographicLib (Karney 2013)",
-        "bearings": "degrees true",
-        "notice": NOT_FOR_OPERATIONAL_USE,
-    }
 
 
 @mcp.tool()
@@ -38,7 +28,7 @@ def range_bearing(lat1: float, lon1: float, lat2: float, lon2: float) -> dict[st
         "distance_nm": g.distance_nm,
         "initial_bearing_deg": g.initial_bearing_deg,
         "final_bearing_deg": g.final_bearing_deg,
-        "meta": _meta(),
+        "meta": meta(),
     }
 
 
@@ -48,7 +38,7 @@ def destination_point(
 ) -> dict[str, Any]:
     """Point reached from a start point along a true bearing for a distance in NM."""
     lat2, lon2 = _destination_point(lat, lon, bearing_deg, distance_nm * METERS_PER_NM)
-    return {"lat": lat2, "lon": lon2, "meta": _meta()}
+    return {"lat": lat2, "lon": lon2, "meta": meta()}
 
 
 @mcp.tool()
@@ -81,7 +71,7 @@ def compute_route_legs(
         "total_ete_min": (
             None if groundspeed_kt is None else sum(leg.ete_min or 0.0 for leg in legs)
         ),
-        "meta": _meta(),
+        "meta": meta(),
     }
 
 
