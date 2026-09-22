@@ -20,6 +20,8 @@ classifiers = [
 dependencies = [
   "geographiclib>=2.0",
   "mcp>=2,<3",
+  "rasterio>=1.4",
+  "rio-tiler>=7.0",
 ]
 
 [project.optional-dependencies]
