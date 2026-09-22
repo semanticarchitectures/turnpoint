@@ -16,16 +16,16 @@ from turnpoint.core import Route, Turnpoint, meta
 from turnpoint.geodesy import METERS_PER_NM
 from turnpoint.geodesy import destination_point as _destination_point
 from turnpoint.geodesy import range_bearing as _range_bearing
-from turnpoint.store import PlanStore
+from turnpoint.store import open_default_store
 from turnpoint.terrain import DEFAULT_SAMPLE_INTERVAL_NM, METERS_PER_FT
 from turnpoint.terrain import elevation_m as _elevation_m
 from turnpoint.terrain import terrain_clear as _terrain_clear
 
 mcp = MCPServer("turnpoint", instructions=NOT_FOR_OPERATIONAL_USE, version=__version__)
 
-# In-memory for Phase 1: no requirement yet for plans to survive a server
-# restart. Swap for a file path (docs/specs/plan-model.md) when one exists.
-_store = PlanStore()
+# Shared with the API (src/turnpoint/api) so a plan created via one is
+# visible via the other — see turnpoint.store.open_default_store.
+_store = open_default_store()
 
 
 def _turnpoints_from_dicts(turnpoints: list[dict[str, Any]]) -> list[Turnpoint]:

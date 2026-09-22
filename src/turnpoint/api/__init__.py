@@ -1,1 +1,1 @@
-"""REST and WebSocket API used by the web viewer. Phase 1."""
+"""REST API used by the web viewer (decision 0003). See app.py, routes.py."""

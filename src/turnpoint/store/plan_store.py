@@ -11,6 +11,7 @@ interface property in docs/PLAN.md).
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import uuid
 from collections.abc import Callable
@@ -23,6 +24,11 @@ from turnpoint.core.route import Route, Turnpoint
 from turnpoint.store.db import connect
 
 Clock = Callable[[], datetime]
+
+# The store the MCP server and API share, so a plan created via one is
+# visible via the other (docs/PLAN.md Phase 1 exit criterion). Configurable
+# via TURNPOINT_STORE_PATH; defaults to a local sqlite file, gitignored.
+DEFAULT_STORE_PATH = Path(os.environ.get("TURNPOINT_STORE_PATH", ".turnpoint/store.sqlite3"))
 
 
 def _utcnow() -> datetime:
@@ -285,3 +291,9 @@ class PlanStore:
             ),
         )
         self._conn.execute("UPDATE plans SET updated_at = ? WHERE id = ?", (now, plan_id))
+
+
+def open_default_store() -> PlanStore:
+    """The store the MCP server and API both open, at DEFAULT_STORE_PATH."""
+    DEFAULT_STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    return PlanStore(DEFAULT_STORE_PATH)

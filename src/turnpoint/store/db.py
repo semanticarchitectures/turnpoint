@@ -47,8 +47,16 @@ MIGRATIONS: list[str] = [
 
 
 def connect(path: str | Path) -> sqlite3.Connection:
-    """Open a connection with foreign keys enforced and migrations applied."""
-    conn = sqlite3.connect(path)
+    """Open a connection with foreign keys enforced and migrations applied.
+
+    ``check_same_thread=False`` because the API (src/turnpoint/api) runs
+    each sync request handler in a worker-pool thread, not the thread that
+    opened the connection. This is safe: Python's sqlite3 module links
+    against SQLite's default "serialized" threading mode, which allows a
+    single connection to be used from multiple threads with SQLite doing
+    its own internal locking.
+    """
+    conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     _migrate(conn)

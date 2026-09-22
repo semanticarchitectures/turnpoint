@@ -4,6 +4,15 @@ from pathlib import Path
 import pytest
 
 from turnpoint.mcp_server import server
+from turnpoint.store import PlanStore
+
+
+@pytest.fixture(autouse=True)
+def isolated_store(monkeypatch):
+    """Each test gets its own in-memory store, never the shared on-disk
+    default (turnpoint.store.open_default_store) the server module-level
+    _store normally points at."""
+    monkeypatch.setattr(server, "_store", PlanStore())
 
 
 def test_tools_are_registered():

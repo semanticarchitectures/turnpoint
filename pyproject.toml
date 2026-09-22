@@ -23,13 +23,16 @@ dependencies = [
   "rasterio>=1.4",
   "rio-tiler>=7.0",
   "numpy>=2.0",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6", "pre-commit>=3"]
+dev = ["pytest>=8", "ruff>=0.6", "pre-commit>=3", "httpx>=0.27"]
 
 [project.scripts]
 turnpoint-mcp = "turnpoint.mcp_server.server:main"
+turnpoint-api = "turnpoint.api.app:main"
 
 [project.urls]
 Repository = "https://github.com/semanticarchitectures/turnpoint"

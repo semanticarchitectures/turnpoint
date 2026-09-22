@@ -3,11 +3,20 @@ directory — never real DTED or chart data (data/README.md)."""
 
 from __future__ import annotations
 
-from pathlib import Path
+import os
 
-import numpy as np
-import pytest
-import rasterio
+# Must run before turnpoint.store or turnpoint.mcp_server.server is first
+# imported by any test module: it sets the default plan store to
+# in-memory for the whole test session, so tests never touch the real
+# on-disk store (turnpoint.store.open_default_store) shared by a locally
+# running MCP server and API.
+os.environ.setdefault("TURNPOINT_STORE_PATH", ":memory:")
+
+from pathlib import Path  # noqa: E402
+
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
+import rasterio  # noqa: E402
 from rasterio.transform import from_origin
 
 BASELINE_ELEVATION_M = 100.0

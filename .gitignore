@@ -12,5 +12,8 @@ dist/
 /data/*
 !/data/README.md
 
+# Local plan store (src/turnpoint/store), shared by the MCP server and API
+.turnpoint/
+
 # Editors / OS
 .DS_Store
