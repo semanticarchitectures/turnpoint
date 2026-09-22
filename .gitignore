@@ -15,5 +15,10 @@ dist/
 # Local plan store (src/turnpoint/store), shared by the MCP server and API
 .turnpoint/
 
+# Node / viewer
+node_modules/
+*.tsbuildinfo
+
 # Editors / OS
 .DS_Store
+.gstack/
