@@ -57,13 +57,22 @@ def compute_route_legs(
 ) -> dict[str, Any]:
     """Leg distances, true courses and times for an ordered list of turnpoints.
 
-    Each turnpoint is ``{"name": str, "lat": float, "lon": float}``.
+    Each turnpoint is ``{"name": str, "lat": float, "lon": float,
+    "altitude_ft": float | None}``; ``altitude_ft`` is optional.
     """
     if len(turnpoints) < 2:
         raise ValueError("a route needs at least two turnpoints")
     route = Route(
         "adhoc",
-        [Turnpoint(str(t["name"]), float(t["lat"]), float(t["lon"])) for t in turnpoints],
+        [
+            Turnpoint(
+                str(t["name"]),
+                float(t["lat"]),
+                float(t["lon"]),
+                None if t.get("altitude_ft") is None else float(t["altitude_ft"]),
+            )
+            for t in turnpoints
+        ],
     )
     legs = route.legs(groundspeed_kt)
     return {

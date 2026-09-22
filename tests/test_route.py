@@ -25,3 +25,11 @@ def test_no_groundspeed_means_no_time():
 def test_bad_groundspeed_rejected():
     with pytest.raises(ValueError):
         _route().legs(groundspeed_kt=0)
+
+
+def test_altitude_defaults_to_none():
+    assert Turnpoint("A", 0, 0).altitude_ft is None
+
+
+def test_altitude_is_passed_through():
+    assert Turnpoint("A", 0, 0, altitude_ft=5500.0).altitude_ft == 5500.0

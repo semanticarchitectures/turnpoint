@@ -1,7 +1,9 @@
-"""Route model v0: an ordered list of turnpoints and the legs between them.
+"""Route model: an ordered list of turnpoints and the legs between them.
 
-This is a deliberately small first cut. Altitude, timing, fuel and constraints
-arrive with the plan model spec (docs/specs/plan-model.md).
+See docs/specs/plan-model.md for the full model, including the persisted
+``Plan`` wrapper and provenance events (src/turnpoint/store). Timing, fuel
+and constraints beyond altitude remain out of scope until a concrete
+consumer needs them.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ class Turnpoint:
     name: str
     lat: float
     lon: float
+    altitude_ft: float | None = None
 
 
 @dataclass(frozen=True)
