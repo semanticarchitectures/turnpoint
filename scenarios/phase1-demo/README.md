@@ -66,16 +66,16 @@ Without a live MCP client, the same two calls work over the REST API and
 exercise the identical `store`/`terrain` code paths:
 
 ```bash
-turnpoint-api &   # or: uvicorn turnpoint.api.app:app
+turnpoint-api &   # or: uvicorn turnpoint.api.app:app --port 8123
 
-PLAN_ID=$(curl -s -X POST http://127.0.0.1:8000/plans -H 'Content-Type: application/json' -d '{
+PLAN_ID=$(curl -s -X POST http://127.0.0.1:8123/plans -H 'Content-Type: application/json' -d '{
   "name": "ALPHA-BRAVO high", "actor": "demo-agent",
   "turnpoints": [
     {"name": "ALPHA", "lat": 0.5, "lon": 0.05, "altitude_ft": 15000},
     {"name": "BRAVO", "lat": 0.5, "lon": 0.95, "altitude_ft": 15000}
   ]}' | python3 -c "import sys,json;print(json.load(sys.stdin)['plan']['id'])")
 
-curl -s "http://127.0.0.1:8000/plans/$PLAN_ID/clearance?clearance_margin_ft=500&dted_source=data/phase1-demo-dem.tif"
+curl -s "http://127.0.0.1:8123/plans/$PLAN_ID/clearance?clearance_margin_ft=500&dted_source=data/phase1-demo-dem.tif"
 echo "$PLAN_ID"
 ```
 
@@ -87,7 +87,7 @@ With the API running and `$PLAN_ID` from above:
 cd viewer && npm run dev
 ```
 
-Open `http://localhost:5173/?plan=<plan-id>&api=http://127.0.0.1:8000` — the
+Open `http://localhost:5173/?plan=<plan-id>&api=http://127.0.0.1:8123` — the
 route renders as a line between ALPHA and BRAVO with turnpoint markers, and
 the status line shows the plan name and leg count. The permanent "not for
 operational use" banner is always visible.

@@ -2,7 +2,7 @@
 // REST API, never to the store/terrain/tiles modules directly).
 //
 // Query params: ?plan=<id> (required to show anything), ?api=<base url>
-// (default http://127.0.0.1:8000), ?tiles=<source> (optional raster
+// (default http://127.0.0.1:8123), ?tiles=<source> (optional raster
 // basemap served from the API's /tiles endpoint; omitted, the map shows
 // just the route on a plain background — Phase 1 has no bundled chart
 // data).
@@ -29,7 +29,7 @@ interface PlanResponse {
 }
 
 const params = new URLSearchParams(location.search);
-const apiBase = params.get("api") ?? "http://127.0.0.1:8000";
+const apiBase = params.get("api") ?? "http://127.0.0.1:8123";
 const planId = params.get("plan");
 const tileSource = params.get("tiles");
 
