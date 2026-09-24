@@ -85,9 +85,65 @@ model has none in v1 (see below). Every turnpoint on a route being
 clearance-checked must have `altitude_ft` set; a `None` anywhere raises,
 rather than being silently treated as ground level or skipped.
 
+## v2 additions
+
+### Overlay
+
+A `Plan` is route-shaped: an ordered, altitude-bearing sequence meant to
+be flown. Imported KML, GPX, GeoJSON and FalconView *drawing* content is
+usually not a route — it is arbitrary points, lines and polygons with
+style/properties, closer to what `README.md`'s layout table already
+called "drawings." `Overlay` is that shape:
+
+- `id: str` — opaque identifier assigned by the store on creation (UUID4).
+- `name: str`
+- `source_format: str` — e.g. `"geojson"`, `"gpx"`, `"kml"`,
+  `"fv-drawing"`, `"fv-local-points"`.
+- `source_path: str` — the file the overlay was imported from.
+- `features: list[OverlayFeature]` — see below.
+- `actor: str` — who or what ran the import. Required, same rationale as
+  a `Plan`'s provenance `actor` (never inferred).
+- `created_at` — from the store's injected clock.
+
+An `OverlayFeature` is one geometry:
+
+- `geometry_type: "point" | "line" | "polygon"`.
+- `coordinates: list[tuple[float, float]]` — `(lat, lon)` pairs, WGS84,
+  consistent with `Turnpoint`. Exactly one pair for `"point"`, two or
+  more for `"line"`, three or more for `"polygon"` (a single ring: first
+  and last coordinate equal, no holes and no multi-ring polygons in v2 —
+  revisit only if an importer produces one and needs it).
+- `properties: dict` — free-form, importer-specific (name, style,
+  original attributes), JSON-serializable.
+
+Unlike a `Plan`, an `Overlay` is **import-once**: there is no
+add/update/remove operation and so no per-mutation provenance event
+chain — just the one `actor`/`created_at` recorded at creation. If a
+concrete need for editing an imported overlay shows up later, extend
+this rather than retrofit `Plan`'s event-chain machinery onto something
+that doesn't need it. See `docs/decisions/0010-overlay-model.md`.
+
+### FidelityReport
+
+Every importer (`src/turnpoint/formats/*`) returns one alongside
+whatever `Overlay`(s) it produces:
+
+- `source_path: str`
+- `format: str`
+- `imported_count: int` — features successfully imported.
+- `skipped: list[FidelityIssue]` — everything the importer could not
+  interpret. Empty means fully faithful. Never silently drop data
+  (`AGENTS.md` §4: "silent data loss is a bug").
+
+A `FidelityIssue` is `item: str` (what was skipped — a name, index or
+other identifier from the source file) and `reason: str` (why).
+
 ## Open gaps
 
 - No units-of-measure abstraction: altitude is hardcoded feet, distance
   hardcoded nautical miles, matching `geodesy`'s existing convention
   (`METERS_PER_NM`). Revisit only if a format import needs a different
   unit natively.
+- Overlay storage schema (single JSON blob per overlay vs. a normalized
+  features table) is decided in `src/turnpoint/store`, not here — this
+  spec fixes the in-memory shape, not the on-disk one.

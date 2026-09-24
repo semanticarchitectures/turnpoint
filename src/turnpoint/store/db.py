@@ -43,6 +43,20 @@ MIGRATIONS: list[str] = [
         UNIQUE (plan_id, seq)
     );
     """,
+    # 2: overlays (docs/specs/plan-model.md "v2 additions", decision 0010).
+    # Import-once, so one row per overlay with features serialized as JSON
+    # rather than a normalized features table -- see the spec's open gap.
+    """
+    CREATE TABLE overlays (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        source_format TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        features_json TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    """,
 ]
 
 
