@@ -164,3 +164,27 @@ def test_get_airport_missing_raises():
 def test_get_navaid():
     out = server.get_navaid("TPV", str(NASR_FIXTURES / "nav_base_sample.csv"), NASR_CYCLE)
     assert out["navaid"]["nav_type"] == "VOR"
+
+
+class _FakeAccessParser:
+    """No real .mdb fixture is possible -- no permissively-licensed
+    Python library can write one (docs/specs/fv-drawing-import.md)."""
+
+    def __init__(self, path: str) -> None:
+        self.catalog = {"Main": 1}
+
+    def parse_table(self, name: str) -> dict[str, list]:
+        return {
+            "FEATURE_NUM": [1],
+            "TYPE": ["LINE"],
+            "DATA": ["DATA_TYPE_MOVETO=N38.000000W77.000000;DATA_TYPE_LINETO=N39.000000W76.000000"],
+        }
+
+
+def test_import_fv_drawing_overlay(monkeypatch):
+    monkeypatch.setattr("access_parser.AccessParser", _FakeAccessParser)
+    imported = server.import_overlay(
+        "fv-drawing", "fake.mdb", "test fv drawing overlay", actor="test-agent"
+    )
+    assert imported["overlay"]["source_format"] == "fv-drawing"
+    assert imported["fidelity_report"]["imported_count"] == 1

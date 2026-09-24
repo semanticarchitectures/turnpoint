@@ -237,3 +237,31 @@ def test_get_navaid(client: TestClient, tmp_path: Path):
     )
     assert resp.status_code == 200
     assert resp.json()["navaid"]["nav_type"] == "VOR"
+
+
+class _FakeAccessParser:
+    """No real .mdb fixture is possible -- no permissively-licensed
+    Python library can write one (docs/specs/fv-drawing-import.md)."""
+
+    def __init__(self, path: str) -> None:
+        self.catalog = {"Main": 1}
+
+    def parse_table(self, name: str) -> dict[str, list]:
+        return {
+            "FEATURE_NUM": [1],
+            "TYPE": ["LINE"],
+            "DATA": ["DATA_TYPE_MOVETO=N38.000000W77.000000;DATA_TYPE_LINETO=N39.000000W76.000000"],
+        }
+
+
+def test_import_fv_drawing_overlay(client: TestClient, tmp_path: Path, monkeypatch):
+    monkeypatch.setattr("access_parser.AccessParser", _FakeAccessParser)
+    (tmp_path / "sample.mdb").write_bytes(b"")  # only _resolve_data_path checks this exists
+    resp = client.post(
+        "/overlays/import",
+        json={"format": "fv-drawing", "path": "sample.mdb", "name": "fv overlay", "actor": "u"},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["overlay"]["source_format"] == "fv-drawing"
+    assert body["fidelity_report"]["imported_count"] == 1

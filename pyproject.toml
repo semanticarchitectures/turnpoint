@@ -26,6 +26,7 @@ dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
   "gpxpy>=1.6",
+  "access-parser>=0.0.6",
 ]
 
 [project.optional-dependencies]

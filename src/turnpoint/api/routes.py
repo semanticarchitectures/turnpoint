@@ -19,7 +19,7 @@ from turnpoint.aero import get_navaid as _get_navaid
 from turnpoint.aero import list_airports_near as _list_airports_near
 from turnpoint.core import fidelity_report_dict, meta
 from turnpoint.core.route import Turnpoint
-from turnpoint.formats import import_geojson, import_gpx, import_kml
+from turnpoint.formats import import_fv_drawing, import_geojson, import_gpx, import_kml
 from turnpoint.store import open_default_overlay_store, open_default_store
 from turnpoint.terrain import DEFAULT_SAMPLE_INTERVAL_NM, elevation_m, terrain_clear
 from turnpoint.tiles import open_source
@@ -28,7 +28,12 @@ router = APIRouter()
 _store = open_default_store()
 _overlay_store = open_default_overlay_store()
 
-_IMPORTERS = {"geojson": import_geojson, "gpx": import_gpx, "kml": import_kml}
+_IMPORTERS = {
+    "geojson": import_geojson,
+    "gpx": import_gpx,
+    "kml": import_kml,
+    "fv-drawing": import_fv_drawing,
+}
 
 # Tile sources are resolved under this directory only (data/README.md:
 # public, local data). TURNPOINT_DATA_DIR overrides it, mainly for tests.
