@@ -19,6 +19,8 @@ from turnpoint.store import OverlayStore, PlanStore
 FIXTURES = Path(__file__).parent / "fixtures" / "geojson"
 GPX_FIXTURES = Path(__file__).parent / "fixtures" / "gpx"
 KML_FIXTURES = Path(__file__).parent / "fixtures" / "kml"
+NASR_FIXTURES = Path(__file__).parent / "fixtures" / "nasr"
+NASR_CYCLE = "2026-08-06"
 
 
 @pytest.fixture(autouse=True)
@@ -191,3 +193,47 @@ def test_import_overlay_missing_file_404(client: TestClient):
 
 def test_get_missing_overlay_404(client: TestClient):
     assert client.get("/overlays/does-not-exist").status_code == 404
+
+
+def test_list_airports_near(client: TestClient, tmp_path: Path):
+    (tmp_path / "apt.csv").write_text((NASR_FIXTURES / "apt_base_sample.csv").read_text())
+    resp = client.get(
+        "/aero/airports",
+        params={
+            "lat": 38.85,
+            "lon": -77.03,
+            "radius_nm": 50.0,
+            "nasr_source": "apt.csv",
+            "nasr_cycle": NASR_CYCLE,
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert {a["ident"] for a in body["airports"]} == {"TP01", "TP02"}
+    assert body["meta"]["nasr_cycle"] == NASR_CYCLE
+
+
+def test_get_airport(client: TestClient, tmp_path: Path):
+    (tmp_path / "apt.csv").write_text((NASR_FIXTURES / "apt_base_sample.csv").read_text())
+    resp = client.get(
+        "/aero/airports/TP01", params={"nasr_source": "apt.csv", "nasr_cycle": NASR_CYCLE}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["airport"]["name"] == "TURNPOINT TEST FIELD ONE"
+
+
+def test_get_airport_missing_404(client: TestClient, tmp_path: Path):
+    (tmp_path / "apt.csv").write_text((NASR_FIXTURES / "apt_base_sample.csv").read_text())
+    resp = client.get(
+        "/aero/airports/NOPE", params={"nasr_source": "apt.csv", "nasr_cycle": NASR_CYCLE}
+    )
+    assert resp.status_code == 404
+
+
+def test_get_navaid(client: TestClient, tmp_path: Path):
+    (tmp_path / "nav.csv").write_text((NASR_FIXTURES / "nav_base_sample.csv").read_text())
+    resp = client.get(
+        "/aero/navaids/TPV", params={"nasr_source": "nav.csv", "nasr_cycle": NASR_CYCLE}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["navaid"]["nav_type"] == "VOR"

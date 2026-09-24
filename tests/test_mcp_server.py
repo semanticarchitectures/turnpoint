@@ -9,6 +9,8 @@ from turnpoint.store import OverlayStore, PlanStore
 FIXTURES = Path(__file__).parent / "fixtures" / "geojson"
 GPX_FIXTURES = Path(__file__).parent / "fixtures" / "gpx"
 KML_FIXTURES = Path(__file__).parent / "fixtures" / "kml"
+NASR_FIXTURES = Path(__file__).parent / "fixtures" / "nasr"
+NASR_CYCLE = "2026-08-06"
 
 
 @pytest.fixture(autouse=True)
@@ -34,6 +36,9 @@ def test_tools_are_registered():
         "import_overlay",
         "get_overlay",
         "list_overlays",
+        "list_airports_near",
+        "get_airport",
+        "get_navaid",
     } <= names
 
 
@@ -136,3 +141,26 @@ def test_import_kml_overlay():
 def test_import_overlay_unsupported_format_raises():
     with pytest.raises(ValueError):
         server.import_overlay("nope", "x.nope", "t", actor="test-agent")
+
+
+def test_list_airports_near_names_nasr_cycle():
+    out = server.list_airports_near(
+        38.85, -77.03, 50.0, str(NASR_FIXTURES / "apt_base_sample.csv"), NASR_CYCLE
+    )
+    assert {a["ident"] for a in out["airports"]} == {"TP01", "TP02"}
+    assert out["meta"]["nasr_cycle"] == NASR_CYCLE
+
+
+def test_get_airport():
+    out = server.get_airport("TP01", str(NASR_FIXTURES / "apt_base_sample.csv"), NASR_CYCLE)
+    assert out["airport"]["name"] == "TURNPOINT TEST FIELD ONE"
+
+
+def test_get_airport_missing_raises():
+    with pytest.raises(KeyError):
+        server.get_airport("NOPE", str(NASR_FIXTURES / "apt_base_sample.csv"), NASR_CYCLE)
+
+
+def test_get_navaid():
+    out = server.get_navaid("TPV", str(NASR_FIXTURES / "nav_base_sample.csv"), NASR_CYCLE)
+    assert out["navaid"]["nav_type"] == "VOR"

@@ -14,6 +14,9 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
+from turnpoint.aero import get_airport as _get_airport
+from turnpoint.aero import get_navaid as _get_navaid
+from turnpoint.aero import list_airports_near as _list_airports_near
 from turnpoint.core import fidelity_report_dict, meta
 from turnpoint.core.route import Turnpoint
 from turnpoint.formats import import_geojson, import_gpx, import_kml
@@ -188,3 +191,41 @@ def list_overlays() -> dict[str, Any]:
 @router.get("/overlays/{overlay_id}")
 def get_overlay(overlay_id: str) -> dict[str, Any]:
     return _overlay_response(overlay_id)
+
+
+@router.get("/aero/airports")
+def list_airports_near(
+    lat: float, lon: float, radius_nm: float, nasr_source: str, nasr_cycle: str
+) -> dict[str, Any]:
+    """Airports within radius_nm of (lat, lon). nasr_source is a filename
+    under DATA_DIR (data/README.md); nasr_cycle is required (decision 0011)."""
+    path = _resolve_data_path(nasr_source)
+    airports, fidelity_report = _list_airports_near(lat, lon, radius_nm, path, nasr_cycle)
+    return {
+        "airports": [asdict(a) for a in airports],
+        "fidelity_report": fidelity_report_dict(fidelity_report),
+        "meta": meta(nasr_source=nasr_source, nasr_cycle=nasr_cycle),
+    }
+
+
+@router.get("/aero/airports/{ident}")
+def get_airport(ident: str, nasr_source: str, nasr_cycle: str) -> dict[str, Any]:
+    path = _resolve_data_path(nasr_source)
+    try:
+        airport = _get_airport(ident, path, nasr_cycle)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {
+        "airport": asdict(airport),
+        "meta": meta(nasr_source=nasr_source, nasr_cycle=nasr_cycle),
+    }
+
+
+@router.get("/aero/navaids/{ident}")
+def get_navaid(ident: str, nasr_source: str, nasr_cycle: str) -> dict[str, Any]:
+    path = _resolve_data_path(nasr_source)
+    try:
+        navaid = _get_navaid(ident, path, nasr_cycle)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"navaid": asdict(navaid), "meta": meta(nasr_source=nasr_source, nasr_cycle=nasr_cycle)}

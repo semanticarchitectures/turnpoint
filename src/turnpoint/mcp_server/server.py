@@ -12,6 +12,9 @@ from typing import Any
 from mcp.server.mcpserver import MCPServer
 
 from turnpoint import NOT_FOR_OPERATIONAL_USE, __version__
+from turnpoint.aero import get_airport as _get_airport
+from turnpoint.aero import get_navaid as _get_navaid
+from turnpoint.aero import list_airports_near as _list_airports_near
 from turnpoint.core import Route, Turnpoint, fidelity_report_dict, meta
 from turnpoint.formats import import_geojson, import_gpx, import_kml
 from turnpoint.geodesy import METERS_PER_NM
@@ -200,6 +203,38 @@ def get_overlay(overlay_id: str) -> dict[str, Any]:
 def list_overlays() -> dict[str, Any]:
     """List every persisted overlay."""
     return {"overlays": [asdict(o) for o in _overlay_store.list_overlays()], "meta": meta()}
+
+
+@mcp.tool()
+def list_airports_near(
+    lat: float, lon: float, radius_nm: float, nasr_source: str, nasr_cycle: str
+) -> dict[str, Any]:
+    """Airports within radius_nm of (lat, lon), from a named NASR APT_BASE.csv
+    extract. ``nasr_cycle`` (e.g. "2026-08-06") is required and named in
+    every result -- never inferred, per decision 0011."""
+    airports, fidelity_report = _list_airports_near(lat, lon, radius_nm, nasr_source, nasr_cycle)
+    return {
+        "airports": [asdict(a) for a in airports],
+        "fidelity_report": fidelity_report_dict(fidelity_report),
+        "meta": meta(nasr_source=nasr_source, nasr_cycle=nasr_cycle),
+    }
+
+
+@mcp.tool()
+def get_airport(ident: str, nasr_source: str, nasr_cycle: str) -> dict[str, Any]:
+    """Look up one airport by ARPT_ID or ICAO_ID in a named NASR extract."""
+    airport = _get_airport(ident, nasr_source, nasr_cycle)
+    return {
+        "airport": asdict(airport),
+        "meta": meta(nasr_source=nasr_source, nasr_cycle=nasr_cycle),
+    }
+
+
+@mcp.tool()
+def get_navaid(ident: str, nasr_source: str, nasr_cycle: str) -> dict[str, Any]:
+    """Look up one navaid by NAV_ID in a named NASR NAV_BASE.csv extract."""
+    navaid = _get_navaid(ident, nasr_source, nasr_cycle)
+    return {"navaid": asdict(navaid), "meta": meta(nasr_source=nasr_source, nasr_cycle=nasr_cycle)}
 
 
 def main() -> None:
