@@ -1,6 +1,6 @@
 """Plan model. The documented schema that every external format maps to and from."""
 
-from turnpoint.core.fidelity import FidelityIssue, FidelityReport
+from turnpoint.core.fidelity import FidelityIssue, FidelityReport, fidelity_report_dict
 from turnpoint.core.meta import meta
 from turnpoint.core.overlay import Overlay, OverlayFeature
 from turnpoint.core.route import Leg, Route, Turnpoint
@@ -13,5 +13,6 @@ __all__ = [
     "OverlayFeature",
     "Route",
     "Turnpoint",
+    "fidelity_report_dict",
     "meta",
 ]

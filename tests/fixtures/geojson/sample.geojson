@@ -1,0 +1,28 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"name": "checkpoint alpha"},
+      "geometry": {"type": "Point", "coordinates": [-77.0377, 38.8521]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "notional boundary"},
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-77.0, 38.0], [-76.0, 38.5], [-75.0, 38.0]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "notional area"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[-77.0, 38.0], [-76.0, 38.0], [-76.0, 39.0], [-77.0, 39.0], [-77.0, 38.0]]
+        ]
+      }
+    }
+  ]
+}

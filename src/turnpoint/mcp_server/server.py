@@ -12,20 +12,24 @@ from typing import Any
 from mcp.server.mcpserver import MCPServer
 
 from turnpoint import NOT_FOR_OPERATIONAL_USE, __version__
-from turnpoint.core import Route, Turnpoint, meta
+from turnpoint.core import Route, Turnpoint, fidelity_report_dict, meta
+from turnpoint.formats import import_geojson
 from turnpoint.geodesy import METERS_PER_NM
 from turnpoint.geodesy import destination_point as _destination_point
 from turnpoint.geodesy import range_bearing as _range_bearing
-from turnpoint.store import open_default_store
+from turnpoint.store import open_default_overlay_store, open_default_store
 from turnpoint.terrain import DEFAULT_SAMPLE_INTERVAL_NM, METERS_PER_FT
 from turnpoint.terrain import elevation_m as _elevation_m
 from turnpoint.terrain import terrain_clear as _terrain_clear
 
 mcp = MCPServer("turnpoint", instructions=NOT_FOR_OPERATIONAL_USE, version=__version__)
 
-# Shared with the API (src/turnpoint/api) so a plan created via one is
-# visible via the other — see turnpoint.store.open_default_store.
+# Shared with the API (src/turnpoint/api) so a plan/overlay created via one
+# is visible via the other — see turnpoint.store.open_default_store.
 _store = open_default_store()
+_overlay_store = open_default_overlay_store()
+
+_IMPORTERS = {"geojson": import_geojson}
 
 
 def _turnpoints_from_dicts(turnpoints: list[dict[str, Any]]) -> list[Turnpoint]:
@@ -161,6 +165,41 @@ def check_terrain_clearance(
         "violations": [asdict(v) for v in report.violations],
         "meta": meta(dted_source=report.dted_source),
     }
+
+
+@mcp.tool()
+def import_overlay(format: str, path: str, name: str, actor: str) -> dict[str, Any]:
+    """Import a file as an Overlay (docs/specs/plan-model.md "v2 additions").
+
+    ``format`` is currently one of: geojson. Returns the persisted overlay
+    and a fidelity report naming anything the importer could not fully
+    interpret — never silent data loss (AGENTS.md section 4).
+    """
+    importer = _IMPORTERS.get(format)
+    if importer is None:
+        raise ValueError(f"unsupported format: {format}")
+    features, fidelity_report = importer(path)
+    overlay = _overlay_store.create_overlay(
+        name, features, source_format=format, source_path=path, actor=actor
+    )
+    return {
+        "overlay": asdict(overlay),
+        "fidelity_report": fidelity_report_dict(fidelity_report),
+        "meta": meta(),
+    }
+
+
+@mcp.tool()
+def get_overlay(overlay_id: str) -> dict[str, Any]:
+    """Fetch a persisted overlay by id."""
+    overlay = _overlay_store.get_overlay(overlay_id)
+    return {"overlay": asdict(overlay), "meta": meta()}
+
+
+@mcp.tool()
+def list_overlays() -> dict[str, Any]:
+    """List every persisted overlay."""
+    return {"overlays": [asdict(o) for o in _overlay_store.list_overlays()], "meta": meta()}
 
 
 def main() -> None:

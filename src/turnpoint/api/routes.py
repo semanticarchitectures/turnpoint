@@ -14,14 +14,18 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
-from turnpoint.core import meta
+from turnpoint.core import fidelity_report_dict, meta
 from turnpoint.core.route import Turnpoint
-from turnpoint.store import open_default_store
+from turnpoint.formats import import_geojson
+from turnpoint.store import open_default_overlay_store, open_default_store
 from turnpoint.terrain import DEFAULT_SAMPLE_INTERVAL_NM, elevation_m, terrain_clear
 from turnpoint.tiles import open_source
 
 router = APIRouter()
 _store = open_default_store()
+_overlay_store = open_default_overlay_store()
+
+_IMPORTERS = {"geojson": import_geojson}
 
 # Tile sources are resolved under this directory only (data/README.md:
 # public, local data). TURNPOINT_DATA_DIR overrides it, mainly for tests.
@@ -41,6 +45,13 @@ class PlanCreate(BaseModel):
     actor: str
 
 
+class OverlayImport(BaseModel):
+    format: str
+    path: str
+    name: str
+    actor: str
+
+
 def _plan_response(plan_id: str) -> dict[str, Any]:
     try:
         plan = _store.get_plan(plan_id)
@@ -50,12 +61,14 @@ def _plan_response(plan_id: str) -> dict[str, Any]:
     return {"plan": asdict(plan), "legs": [leg.__dict__ for leg in legs], "meta": meta()}
 
 
-def _resolve_tile_source(source: str) -> Path:
-    candidate = (DATA_DIR / source).resolve()
+def _resolve_data_path(name: str) -> Path:
+    """Resolve a filename under DATA_DIR only -- used by both tile sources
+    and overlay imports, since both accept a filename from a client."""
+    candidate = (DATA_DIR / name).resolve()
     if not candidate.is_relative_to(DATA_DIR):
-        raise HTTPException(status_code=400, detail="invalid tile source")
+        raise HTTPException(status_code=400, detail="invalid path")
     if not candidate.is_file():
-        raise HTTPException(status_code=404, detail=f"no such tile source: {source}")
+        raise HTTPException(status_code=404, detail=f"no such file: {name}")
     return candidate
 
 
@@ -131,9 +144,47 @@ def get_elevation(lat: float, lon: float, dted_source: str) -> dict[str, Any]:
 
 @router.get("/tiles/{source}/{z}/{x}/{y}.png")
 def get_tile(source: str, z: int, x: int, y: int) -> Response:
-    path = _resolve_tile_source(source)
+    path = _resolve_data_path(source)
     try:
         png = open_source(path).tile(z, x, y)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return Response(content=png, media_type="image/png")
+
+
+def _overlay_response(overlay_id: str) -> dict[str, Any]:
+    try:
+        overlay = _overlay_store.get_overlay(overlay_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"overlay": asdict(overlay), "meta": meta()}
+
+
+@router.post("/overlays/import", status_code=201)
+def import_overlay(body: OverlayImport) -> dict[str, Any]:
+    importer = _IMPORTERS.get(body.format)
+    if importer is None:
+        raise HTTPException(status_code=400, detail=f"unsupported format: {body.format}")
+    path = _resolve_data_path(body.path)
+    try:
+        features, fidelity_report = importer(path)
+    except (ValueError, OSError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    overlay = _overlay_store.create_overlay(
+        body.name, features, source_format=body.format, source_path=str(path), actor=body.actor
+    )
+    return {
+        "overlay": asdict(overlay),
+        "fidelity_report": fidelity_report_dict(fidelity_report),
+        "meta": meta(),
+    }
+
+
+@router.get("/overlays")
+def list_overlays() -> dict[str, Any]:
+    return {"overlays": [asdict(o) for o in _overlay_store.list_overlays()], "meta": meta()}
+
+
+@router.get("/overlays/{overlay_id}")
+def get_overlay(overlay_id: str) -> dict[str, Any]:
+    return _overlay_response(overlay_id)

@@ -14,12 +14,15 @@ from rasterio.transform import from_origin
 
 from turnpoint.api import routes
 from turnpoint.api.app import app
-from turnpoint.store import PlanStore
+from turnpoint.store import OverlayStore, PlanStore
+
+FIXTURES = Path(__file__).parent / "fixtures" / "geojson"
 
 
 @pytest.fixture(autouse=True)
 def isolated_store(monkeypatch):
     monkeypatch.setattr(routes, "_store", PlanStore())
+    monkeypatch.setattr(routes, "_overlay_store", OverlayStore())
 
 
 @pytest.fixture
@@ -117,7 +120,48 @@ def test_tile_missing_source_404(client: TestClient):
     assert client.get("/tiles/nope.tif/0/0/0.png").status_code == 404
 
 
-def test_resolve_tile_source_rejects_traversal(tmp_path: Path, monkeypatch):
+def test_resolve_data_path_rejects_traversal(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(routes, "DATA_DIR", tmp_path.resolve())
     with pytest.raises(HTTPException):
-        routes._resolve_tile_source("../outside.tif")
+        routes._resolve_data_path("../outside.tif")
+
+
+def test_import_geojson_overlay(client: TestClient, tmp_path: Path):
+    (tmp_path / "sample.geojson").write_text((FIXTURES / "sample.geojson").read_text())
+    resp = client.post(
+        "/overlays/import",
+        json={"format": "geojson", "path": "sample.geojson", "name": "test overlay", "actor": "u"},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["overlay"]["name"] == "test overlay"
+    assert body["fidelity_report"]["fully_faithful"] is True
+    assert body["fidelity_report"]["imported_count"] == 3
+
+    overlay_id = body["overlay"]["id"]
+    fetched = client.get(f"/overlays/{overlay_id}")
+    assert fetched.status_code == 200
+    assert fetched.json()["overlay"]["id"] == overlay_id
+
+    listed = client.get("/overlays").json()["overlays"]
+    assert any(o["id"] == overlay_id for o in listed)
+
+
+def test_import_overlay_unsupported_format(client: TestClient):
+    resp = client.post(
+        "/overlays/import",
+        json={"format": "nope", "path": "x.nope", "name": "t", "actor": "u"},
+    )
+    assert resp.status_code == 400
+
+
+def test_import_overlay_missing_file_404(client: TestClient):
+    resp = client.post(
+        "/overlays/import",
+        json={"format": "geojson", "path": "missing.geojson", "name": "t", "actor": "u"},
+    )
+    assert resp.status_code == 404
+
+
+def test_get_missing_overlay_404(client: TestClient):
+    assert client.get("/overlays/does-not-exist").status_code == 404

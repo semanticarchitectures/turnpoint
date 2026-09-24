@@ -1,0 +1,31 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"name": "multipoint not supported"},
+      "geometry": {"type": "MultiPoint", "coordinates": [[-77.0, 38.0], [-76.0, 38.0]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "point with altitude"},
+      "geometry": {"type": "Point", "coordinates": [-77.0377, 38.8521, 150.0]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "polygon with hole"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[-77.0, 38.0], [-76.0, 38.0], [-76.0, 39.0], [-77.0, 39.0], [-77.0, 38.0]],
+          [[-76.8, 38.2], [-76.6, 38.2], [-76.6, 38.4], [-76.8, 38.4], [-76.8, 38.2]]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "no geometry"},
+      "geometry": null
+    }
+  ]
+}

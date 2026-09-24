@@ -4,7 +4,9 @@ from pathlib import Path
 import pytest
 
 from turnpoint.mcp_server import server
-from turnpoint.store import PlanStore
+from turnpoint.store import OverlayStore, PlanStore
+
+FIXTURES = Path(__file__).parent / "fixtures" / "geojson"
 
 
 @pytest.fixture(autouse=True)
@@ -13,6 +15,7 @@ def isolated_store(monkeypatch):
     default (turnpoint.store.open_default_store) the server module-level
     _store normally points at."""
     monkeypatch.setattr(server, "_store", PlanStore())
+    monkeypatch.setattr(server, "_overlay_store", OverlayStore())
 
 
 def test_tools_are_registered():
@@ -26,6 +29,9 @@ def test_tools_are_registered():
         "list_plans",
         "get_elevation",
         "check_terrain_clearance",
+        "import_overlay",
+        "get_overlay",
+        "list_overlays",
     } <= names
 
 
@@ -91,3 +97,22 @@ def test_check_terrain_clearance_clear_route(dem: Path):
     )
     assert out["clear"] is True
     assert out["violations"] == []
+
+
+def test_import_overlay_and_get_and_list():
+    imported = server.import_overlay(
+        "geojson", str(FIXTURES / "sample.geojson"), "test overlay", actor="test-agent"
+    )
+    assert imported["fidelity_report"]["fully_faithful"] is True
+    overlay_id = imported["overlay"]["id"]
+
+    fetched = server.get_overlay(overlay_id)
+    assert fetched["overlay"]["name"] == "test overlay"
+
+    listed = server.list_overlays()["overlays"]
+    assert overlay_id in {o["id"] for o in listed}
+
+
+def test_import_overlay_unsupported_format_raises():
+    with pytest.raises(ValueError):
+        server.import_overlay("nope", "x.nope", "t", actor="test-agent")

@@ -132,10 +132,14 @@ whatever `Overlay`(s) it produces:
 - `format: str`
 - `imported_count: int` — features successfully imported.
 - `skipped: list[FidelityIssue]` — everything the importer could not
-  interpret. Empty means fully faithful. Never silently drop data
+  fully interpret. Covers both a feature dropped entirely *and* a
+  feature imported but with some information not carried over (e.g. a
+  GeoJSON altitude value, since `OverlayFeature` is 2D — the point
+  itself still imports, but the altitude is flagged, not silently
+  dropped). Empty means fully faithful. Never silently drop data
   (`AGENTS.md` §4: "silent data loss is a bug").
 
-A `FidelityIssue` is `item: str` (what was skipped — a name, index or
+A `FidelityIssue` is `item: str` (what was affected — a name, index or
 other identifier from the source file) and `reason: str` (why).
 
 ## Open gaps

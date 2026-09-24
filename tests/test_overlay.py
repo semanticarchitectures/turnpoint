@@ -1,6 +1,12 @@
 import pytest
 
-from turnpoint.core import FidelityIssue, FidelityReport, Overlay, OverlayFeature
+from turnpoint.core import (
+    FidelityIssue,
+    FidelityReport,
+    Overlay,
+    OverlayFeature,
+    fidelity_report_dict,
+)
 
 
 def test_point_feature_requires_one_coordinate():
@@ -49,3 +55,13 @@ def test_fidelity_report_not_faithful_when_something_skipped():
     )
     assert not report.fully_faithful
     assert report.skipped[0].reason == "unsupported geometry type"
+
+
+def test_fidelity_report_dict_includes_fully_faithful():
+    """dataclasses.asdict alone silently drops the fully_faithful
+    property; fidelity_report_dict is the one true serialization every
+    API/MCP call site should use instead of a bare asdict()."""
+    report = FidelityReport(source_path="a.geojson", format="geojson", imported_count=3)
+    d = fidelity_report_dict(report)
+    assert d["fully_faithful"] is True
+    assert d["imported_count"] == 3
