@@ -17,6 +17,7 @@ from turnpoint.api.app import app
 from turnpoint.store import OverlayStore, PlanStore
 
 FIXTURES = Path(__file__).parent / "fixtures" / "geojson"
+GPX_FIXTURES = Path(__file__).parent / "fixtures" / "gpx"
 
 
 @pytest.fixture(autouse=True)
@@ -145,6 +146,18 @@ def test_import_geojson_overlay(client: TestClient, tmp_path: Path):
 
     listed = client.get("/overlays").json()["overlays"]
     assert any(o["id"] == overlay_id for o in listed)
+
+
+def test_import_gpx_overlay(client: TestClient, tmp_path: Path):
+    (tmp_path / "sample.gpx").write_text((GPX_FIXTURES / "sample.gpx").read_text())
+    resp = client.post(
+        "/overlays/import",
+        json={"format": "gpx", "path": "sample.gpx", "name": "gpx overlay", "actor": "u"},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["overlay"]["source_format"] == "gpx"
+    assert body["fidelity_report"]["imported_count"] == 3
 
 
 def test_import_overlay_unsupported_format(client: TestClient):

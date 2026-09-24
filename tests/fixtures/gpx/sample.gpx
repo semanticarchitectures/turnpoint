@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="turnpoint-test-fixture" xmlns="http://www.topografix.com/GPX/1/1">
+  <wpt lat="38.8521" lon="-77.0377">
+    <name>checkpoint alpha</name>
+  </wpt>
+  <rte>
+    <name>notional route</name>
+    <rtept lat="38.0" lon="-77.0"><name>R1</name></rtept>
+    <rtept lat="38.5" lon="-76.0"><name>R2</name></rtept>
+    <rtept lat="38.0" lon="-75.0"><name>R3</name></rtept>
+  </rte>
+  <trk>
+    <name>notional track</name>
+    <trkseg>
+      <trkpt lat="37.0" lon="-77.0"></trkpt>
+      <trkpt lat="37.5" lon="-76.5"></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

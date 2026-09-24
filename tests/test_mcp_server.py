@@ -7,6 +7,7 @@ from turnpoint.mcp_server import server
 from turnpoint.store import OverlayStore, PlanStore
 
 FIXTURES = Path(__file__).parent / "fixtures" / "geojson"
+GPX_FIXTURES = Path(__file__).parent / "fixtures" / "gpx"
 
 
 @pytest.fixture(autouse=True)
@@ -111,6 +112,15 @@ def test_import_overlay_and_get_and_list():
 
     listed = server.list_overlays()["overlays"]
     assert overlay_id in {o["id"] for o in listed}
+
+
+def test_import_gpx_overlay():
+    imported = server.import_overlay(
+        "gpx", str(GPX_FIXTURES / "sample.gpx"), "test gpx overlay", actor="test-agent"
+    )
+    assert imported["fidelity_report"]["fully_faithful"] is True
+    assert imported["fidelity_report"]["imported_count"] == 3
+    assert imported["overlay"]["source_format"] == "gpx"
 
 
 def test_import_overlay_unsupported_format_raises():

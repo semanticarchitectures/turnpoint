@@ -18,6 +18,7 @@ Add a row **before** adding the dependency. Verify the license at the pinned ver
 | maplibre-gl | Web map rendering for `viewer/` | BSD-3-Clause | 2026-09-22, `npm view maplibre-gl license` | Runtime (browser) |
 | vite | Viewer dev server/bundler | MIT | 2026-09-22, `npm view vite license` | Dev only |
 | typescript | Viewer language/build | Apache-2.0 | 2026-09-22, `npm view typescript license` | Dev only |
+| gpxpy | GPX import for `src/turnpoint/formats/gpx.py` | Apache-2.0 | 2026-09-24, from package metadata (`License: Apache License, Version 2.0`) | Runtime; `fastkml` (LGPL) considered and rejected for KML, see decision 0010's Phase 2 research notes |
 
 Planned, not yet added: pyproj, Shapely, mgrs, access-parser, milsymbol.
 Do not add GPL or LGPL components, or non-commercial data such as

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="turnpoint-test-fixture" xmlns="http://www.topografix.com/GPX/1/1">
+  <wpt lat="38.8521" lon="-77.0377">
+    <ele>150.0</ele>
+    <name>waypoint with elevation</name>
+  </wpt>
+  <rte>
+    <name>too short route</name>
+    <rtept lat="38.0" lon="-77.0"><name>only point</name></rtept>
+  </rte>
+  <trk>
+    <name>track with elevation</name>
+    <trkseg>
+      <trkpt lat="37.0" lon="-77.0"><ele>200.0</ele></trkpt>
+      <trkpt lat="37.5" lon="-76.5"><ele>210.0</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
