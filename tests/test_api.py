@@ -18,6 +18,7 @@ from turnpoint.store import OverlayStore, PlanStore
 
 FIXTURES = Path(__file__).parent / "fixtures" / "geojson"
 GPX_FIXTURES = Path(__file__).parent / "fixtures" / "gpx"
+KML_FIXTURES = Path(__file__).parent / "fixtures" / "kml"
 
 
 @pytest.fixture(autouse=True)
@@ -157,6 +158,18 @@ def test_import_gpx_overlay(client: TestClient, tmp_path: Path):
     assert resp.status_code == 201
     body = resp.json()
     assert body["overlay"]["source_format"] == "gpx"
+    assert body["fidelity_report"]["imported_count"] == 3
+
+
+def test_import_kml_overlay(client: TestClient, tmp_path: Path):
+    (tmp_path / "sample.kml").write_text((KML_FIXTURES / "sample.kml").read_text())
+    resp = client.post(
+        "/overlays/import",
+        json={"format": "kml", "path": "sample.kml", "name": "kml overlay", "actor": "u"},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["overlay"]["source_format"] == "kml"
     assert body["fidelity_report"]["imported_count"] == 3
 
 

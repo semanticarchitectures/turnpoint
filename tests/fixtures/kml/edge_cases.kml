@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>point with altitude</name>
+      <Point>
+        <coordinates>-77.0377,38.8521,150.0</coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>polygon with hole</name>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              -77.0,38.0 -76.0,38.0 -76.0,39.0 -77.0,39.0 -77.0,38.0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+        <innerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              -76.8,38.2 -76.6,38.2 -76.6,38.4 -76.8,38.4 -76.8,38.2
+            </coordinates>
+          </LinearRing>
+        </innerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>no geometry</name>
+      <description>a placemark with no Point/LineString/Polygon</description>
+    </Placemark>
+    <Placemark>
+      <name>multigeometry</name>
+      <MultiGeometry>
+        <Point>
+          <coordinates>-77.0,38.0</coordinates>
+        </Point>
+        <Point>
+          <coordinates>-76.0,38.0</coordinates>
+        </Point>
+      </MultiGeometry>
+    </Placemark>
+  </Document>
+</kml>

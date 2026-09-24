@@ -13,7 +13,7 @@ from mcp.server.mcpserver import MCPServer
 
 from turnpoint import NOT_FOR_OPERATIONAL_USE, __version__
 from turnpoint.core import Route, Turnpoint, fidelity_report_dict, meta
-from turnpoint.formats import import_geojson, import_gpx
+from turnpoint.formats import import_geojson, import_gpx, import_kml
 from turnpoint.geodesy import METERS_PER_NM
 from turnpoint.geodesy import destination_point as _destination_point
 from turnpoint.geodesy import range_bearing as _range_bearing
@@ -29,7 +29,7 @@ mcp = MCPServer("turnpoint", instructions=NOT_FOR_OPERATIONAL_USE, version=__ver
 _store = open_default_store()
 _overlay_store = open_default_overlay_store()
 
-_IMPORTERS = {"geojson": import_geojson, "gpx": import_gpx}
+_IMPORTERS = {"geojson": import_geojson, "gpx": import_gpx, "kml": import_kml}
 
 
 def _turnpoints_from_dicts(turnpoints: list[dict[str, Any]]) -> list[Turnpoint]:
@@ -171,7 +171,7 @@ def check_terrain_clearance(
 def import_overlay(format: str, path: str, name: str, actor: str) -> dict[str, Any]:
     """Import a file as an Overlay (docs/specs/plan-model.md "v2 additions").
 
-    ``format`` is currently one of: geojson, gpx. Returns the persisted overlay
+    ``format`` is currently one of: geojson, gpx, kml. Returns the persisted overlay
     and a fidelity report naming anything the importer could not fully
     interpret — never silent data loss (AGENTS.md section 4).
     """

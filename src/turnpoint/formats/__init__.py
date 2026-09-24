@@ -3,5 +3,6 @@
 
 from turnpoint.formats.geojson import import_geojson
 from turnpoint.formats.gpx import import_gpx
+from turnpoint.formats.kml import import_kml
 
-__all__ = ["import_geojson", "import_gpx"]
+__all__ = ["import_geojson", "import_gpx", "import_kml"]
