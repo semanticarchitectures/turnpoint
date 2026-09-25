@@ -57,6 +57,22 @@ MIGRATIONS: list[str] = [
         created_at TEXT NOT NULL
     );
     """,
+    # 3: threats (docs/PLAN.md Phase 3). Import-once like overlays -- a
+    # scenario defines them, nothing iteratively mutates one.
+    """
+    CREATE TABLE threats (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        threat_type TEXT NOT NULL,
+        lat REAL NOT NULL,
+        lon REAL NOT NULL,
+        engagement_radius_nm REAL NOT NULL,
+        sensor_height_ft REAL NOT NULL,
+        sidc TEXT,
+        actor TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    """,
 ]
 
 

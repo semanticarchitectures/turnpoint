@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from turnpoint.mcp_server import server
-from turnpoint.store import OverlayStore, PlanStore
+from turnpoint.store import OverlayStore, PlanStore, ThreatStore
 
 FIXTURES = Path(__file__).parent / "fixtures" / "geojson"
 GPX_FIXTURES = Path(__file__).parent / "fixtures" / "gpx"
@@ -20,6 +20,7 @@ def isolated_store(monkeypatch):
     _store normally points at."""
     monkeypatch.setattr(server, "_store", PlanStore())
     monkeypatch.setattr(server, "_overlay_store", OverlayStore())
+    monkeypatch.setattr(server, "_threat_store", ThreatStore())
 
 
 def test_tools_are_registered():
@@ -41,6 +42,9 @@ def test_tools_are_registered():
         "get_navaid",
         "line_of_sight",
         "terrain_profile",
+        "create_threat",
+        "get_threat",
+        "list_threats",
     } <= names
 
 
@@ -215,3 +219,26 @@ def test_terrain_profile_for_plan(dem: Path):
     assert len(out["legs"]) == 1
     assert out["legs"][0]["samples"]
     assert out["meta"]["dted_source"] == str(dem)
+
+
+def test_create_and_get_threat():
+    created = server.create_threat(
+        "test threat", "NOTIONAL-SAM-A", 38.0, -77.0, 20.0, actor="test-agent"
+    )
+    assert created["threat"]["threat_type"] == "NOTIONAL-SAM-A"
+    threat_id = created["threat"]["id"]
+    fetched = server.get_threat(threat_id)
+    assert fetched["threat"]["name"] == "test threat"
+
+
+def test_list_threats_includes_created_threat():
+    created = server.create_threat(
+        "listed threat", "NOTIONAL-AAA-A", 39.0, -76.0, 5.0, actor="test-agent"
+    )
+    threats = server.list_threats()["threats"]
+    assert created["threat"]["id"] in {t["id"] for t in threats}
+
+
+def test_get_missing_threat_raises():
+    with pytest.raises(KeyError):
+        server.get_threat("does-not-exist")

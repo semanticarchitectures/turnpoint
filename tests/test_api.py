@@ -14,7 +14,7 @@ from rasterio.transform import from_origin
 
 from turnpoint.api import routes
 from turnpoint.api.app import app
-from turnpoint.store import OverlayStore, PlanStore
+from turnpoint.store import OverlayStore, PlanStore, ThreatStore
 
 FIXTURES = Path(__file__).parent / "fixtures" / "geojson"
 GPX_FIXTURES = Path(__file__).parent / "fixtures" / "gpx"
@@ -27,6 +27,7 @@ NASR_CYCLE = "2026-08-06"
 def isolated_store(monkeypatch):
     monkeypatch.setattr(routes, "_store", PlanStore())
     monkeypatch.setattr(routes, "_overlay_store", OverlayStore())
+    monkeypatch.setattr(routes, "_threat_store", ThreatStore())
 
 
 @pytest.fixture
@@ -150,6 +151,50 @@ def test_terrain_profile(client: TestClient, dem: Path):
 def test_terrain_profile_missing_plan_404(client: TestClient, dem: Path):
     resp = client.get("/plans/does-not-exist/profile", params={"dted_source": str(dem)})
     assert resp.status_code == 404
+
+
+def test_create_and_get_threat(client: TestClient):
+    resp = client.post(
+        "/threats",
+        json={
+            "name": "test threat",
+            "threat_type": "NOTIONAL-SAM-A",
+            "lat": 38.0,
+            "lon": -77.0,
+            "engagement_radius_nm": 20.0,
+            "actor": "u",
+        },
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["threat"]["threat_type"] == "NOTIONAL-SAM-A"
+    threat_id = body["threat"]["id"]
+
+    fetched = client.get(f"/threats/{threat_id}")
+    assert fetched.status_code == 200
+    assert fetched.json()["threat"]["name"] == "test threat"
+
+    listed = client.get("/threats").json()["threats"]
+    assert any(t["id"] == threat_id for t in listed)
+
+
+def test_create_threat_rejects_non_positive_radius(client: TestClient):
+    resp = client.post(
+        "/threats",
+        json={
+            "name": "t",
+            "threat_type": "NOTIONAL-SAM-A",
+            "lat": 38.0,
+            "lon": -77.0,
+            "engagement_radius_nm": 0,
+            "actor": "u",
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_get_missing_threat_404(client: TestClient):
+    assert client.get("/threats/does-not-exist").status_code == 404
 
 
 def _write_tile_fixture(path: Path) -> None:

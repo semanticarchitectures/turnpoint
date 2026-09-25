@@ -20,7 +20,11 @@ from turnpoint.formats import import_fv_drawing, import_geojson, import_gpx, imp
 from turnpoint.geodesy import METERS_PER_NM
 from turnpoint.geodesy import destination_point as _destination_point
 from turnpoint.geodesy import range_bearing as _range_bearing
-from turnpoint.store import open_default_overlay_store, open_default_store
+from turnpoint.store import (
+    open_default_overlay_store,
+    open_default_store,
+    open_default_threat_store,
+)
 from turnpoint.terrain import DEFAULT_SAMPLE_INTERVAL_NM, METERS_PER_FT
 from turnpoint.terrain import elevation_m as _elevation_m
 from turnpoint.terrain import line_of_sight as _line_of_sight
@@ -29,10 +33,11 @@ from turnpoint.terrain import terrain_profile as _terrain_profile
 
 mcp = MCPServer("turnpoint", instructions=NOT_FOR_OPERATIONAL_USE, version=__version__)
 
-# Shared with the API (src/turnpoint/api) so a plan/overlay created via one
-# is visible via the other — see turnpoint.store.open_default_store.
+# Shared with the API (src/turnpoint/api) so a plan/overlay/threat created
+# via one is visible via the other — see turnpoint.store.open_default_store.
 _store = open_default_store()
 _overlay_store = open_default_overlay_store()
+_threat_store = open_default_threat_store()
 
 _IMPORTERS = {
     "geojson": import_geojson,
@@ -263,6 +268,52 @@ def get_overlay(overlay_id: str) -> dict[str, Any]:
 def list_overlays() -> dict[str, Any]:
     """List every persisted overlay."""
     return {"overlays": [asdict(o) for o in _overlay_store.list_overlays()], "meta": meta()}
+
+
+@mcp.tool()
+def create_threat(
+    name: str,
+    threat_type: str,
+    lat: float,
+    lon: float,
+    engagement_radius_nm: float,
+    actor: str,
+    sensor_height_ft: float = 0.0,
+    sidc: str | None = None,
+) -> dict[str, Any]:
+    """Create and persist a notional threat (docs/PLAN.md Phase 3).
+
+    Never a real threat system's actual parameters (AGENTS.md section 2)
+    — ``threat_type`` should be a notional label like "NOTIONAL-SAM-A",
+    and ``engagement_radius_nm`` a caller-chosen notional ring, not a real
+    system's actual range. ``sidc`` is an optional MIL-STD-2525 Symbol
+    Identification Code for the viewer to render (M23); Turnpoint does
+    not validate or interpret it.
+    """
+    threat = _threat_store.create_threat(
+        name,
+        threat_type,
+        lat,
+        lon,
+        engagement_radius_nm,
+        sensor_height_ft=sensor_height_ft,
+        sidc=sidc,
+        actor=actor,
+    )
+    return {"threat": asdict(threat), "meta": meta()}
+
+
+@mcp.tool()
+def get_threat(threat_id: str) -> dict[str, Any]:
+    """Fetch a persisted threat by id."""
+    threat = _threat_store.get_threat(threat_id)
+    return {"threat": asdict(threat), "meta": meta()}
+
+
+@mcp.tool()
+def list_threats() -> dict[str, Any]:
+    """List every persisted threat."""
+    return {"threats": [asdict(t) for t in _threat_store.list_threats()], "meta": meta()}
 
 
 @mcp.tool()

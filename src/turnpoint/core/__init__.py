@@ -4,6 +4,7 @@ from turnpoint.core.fidelity import FidelityIssue, FidelityReport, fidelity_repo
 from turnpoint.core.meta import meta
 from turnpoint.core.overlay import Overlay, OverlayFeature
 from turnpoint.core.route import Leg, Route, Turnpoint
+from turnpoint.core.threat import Threat
 
 __all__ = [
     "FidelityIssue",
@@ -12,6 +13,7 @@ __all__ = [
     "Overlay",
     "OverlayFeature",
     "Route",
+    "Threat",
     "Turnpoint",
     "fidelity_report_dict",
     "meta",

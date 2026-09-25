@@ -20,7 +20,11 @@ from turnpoint.aero import list_airports_near as _list_airports_near
 from turnpoint.core import fidelity_report_dict, meta
 from turnpoint.core.route import Turnpoint
 from turnpoint.formats import import_fv_drawing, import_geojson, import_gpx, import_kml
-from turnpoint.store import open_default_overlay_store, open_default_store
+from turnpoint.store import (
+    open_default_overlay_store,
+    open_default_store,
+    open_default_threat_store,
+)
 from turnpoint.terrain import DEFAULT_SAMPLE_INTERVAL_NM, elevation_m, terrain_clear
 from turnpoint.terrain import line_of_sight as _line_of_sight
 from turnpoint.terrain import terrain_profile as _terrain_profile
@@ -29,6 +33,7 @@ from turnpoint.tiles import open_source
 router = APIRouter()
 _store = open_default_store()
 _overlay_store = open_default_overlay_store()
+_threat_store = open_default_threat_store()
 
 _IMPORTERS = {
     "geojson": import_geojson,
@@ -59,6 +64,17 @@ class OverlayImport(BaseModel):
     format: str
     path: str
     name: str
+    actor: str
+
+
+class ThreatCreate(BaseModel):
+    name: str
+    threat_type: str
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    engagement_radius_nm: float = Field(gt=0)
+    sensor_height_ft: float = 0.0
+    sidc: str | None = None
     actor: str
 
 
@@ -253,6 +269,35 @@ def list_overlays() -> dict[str, Any]:
 @router.get("/overlays/{overlay_id}")
 def get_overlay(overlay_id: str) -> dict[str, Any]:
     return _overlay_response(overlay_id)
+
+
+@router.post("/threats", status_code=201)
+def create_threat(body: ThreatCreate) -> dict[str, Any]:
+    threat = _threat_store.create_threat(
+        body.name,
+        body.threat_type,
+        body.lat,
+        body.lon,
+        body.engagement_radius_nm,
+        sensor_height_ft=body.sensor_height_ft,
+        sidc=body.sidc,
+        actor=body.actor,
+    )
+    return {"threat": asdict(threat), "meta": meta()}
+
+
+@router.get("/threats")
+def list_threats() -> dict[str, Any]:
+    return {"threats": [asdict(t) for t in _threat_store.list_threats()], "meta": meta()}
+
+
+@router.get("/threats/{threat_id}")
+def get_threat(threat_id: str) -> dict[str, Any]:
+    try:
+        threat = _threat_store.get_threat(threat_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"threat": asdict(threat), "meta": meta()}
 
 
 @router.get("/aero/airports")
