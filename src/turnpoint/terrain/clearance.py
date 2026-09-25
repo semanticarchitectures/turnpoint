@@ -10,7 +10,6 @@ is not for operational use.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,10 +17,8 @@ import rasterio
 from rasterio.io import DatasetReader
 
 from turnpoint.core.route import Route, Turnpoint
-from turnpoint.geodesy import METERS_PER_NM, destination_point, range_bearing
+from turnpoint.terrain._sampling import DEFAULT_SAMPLE_INTERVAL_NM, sample_path
 from turnpoint.terrain.dted import METERS_PER_FT, _sample
-
-DEFAULT_SAMPLE_INTERVAL_NM = 1.0
 
 
 @dataclass(frozen=True)
@@ -74,24 +71,15 @@ def _leg_samples(
             "terrain clearance requires altitude_ft on every turnpoint; "
             f"missing on leg {from_tp.name} -> {to_tp.name}"
         )
-    g = range_bearing(from_tp.lat, from_tp.lon, to_tp.lat, to_tp.lon)
-    leg_nm = g.distance_nm
-    n_samples = 1 if leg_nm == 0 else max(2, math.ceil(leg_nm / sample_interval_nm) + 1)
-    samples: list[tuple[float, float, float, float]] = []
-    for i in range(n_samples):
-        frac = i / (n_samples - 1) if n_samples > 1 else 0.0
-        dist_nm = frac * leg_nm
-        if i == 0:
-            lat, lon = from_tp.lat, from_tp.lon
-        elif i == n_samples - 1:
-            lat, lon = to_tp.lat, to_tp.lon
-        else:
-            lat, lon = destination_point(
-                from_tp.lat, from_tp.lon, g.initial_bearing_deg, dist_nm * METERS_PER_NM
-            )
-        altitude_ft = from_tp.altitude_ft + frac * (to_tp.altitude_ft - from_tp.altitude_ft)
-        samples.append((lat, lon, dist_nm, altitude_ft))
-    return samples
+    return sample_path(
+        from_tp.lat,
+        from_tp.lon,
+        from_tp.altitude_ft,
+        to_tp.lat,
+        to_tp.lon,
+        to_tp.altitude_ft,
+        sample_interval_nm,
+    )
 
 
 def _sample_clearance(

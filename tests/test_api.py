@@ -95,6 +95,63 @@ def test_clearance(client: TestClient, dem: Path):
     assert resp.json()["meta"]["dted_source"] == str(dem)
 
 
+def test_line_of_sight_blocked(client: TestClient, dem: Path):
+    resp = client.get(
+        "/terrain/line-of-sight",
+        params={
+            "lat1": 0.5,
+            "lon1": 0.05,
+            "height1_ft": 1000.0,
+            "lat2": 0.5,
+            "lon2": 0.95,
+            "height2_ft": 1000.0,
+            "dted_source": str(dem),
+            "sample_interval_nm": 2.0,
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["visible"] is False
+    assert body["first_obstruction"] is not None
+
+
+def test_line_of_sight_clear(client: TestClient, dem: Path):
+    resp = client.get(
+        "/terrain/line-of-sight",
+        params={
+            "lat1": 0.5,
+            "lon1": 0.05,
+            "height1_ft": 15000.0,
+            "lat2": 0.5,
+            "lon2": 0.95,
+            "height2_ft": 15000.0,
+            "dted_source": str(dem),
+            "sample_interval_nm": 2.0,
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["visible"] is True
+
+
+def test_terrain_profile(client: TestClient, dem: Path):
+    created = client.post(
+        "/plans", json={"name": "t", "turnpoints": _turnpoints(), "actor": "u"}
+    ).json()
+    resp = client.get(
+        f"/plans/{created['plan']['id']}/profile",
+        params={"dted_source": str(dem), "sample_interval_nm": 2.0},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["legs"]) == 1
+    assert body["legs"][0]["samples"]
+
+
+def test_terrain_profile_missing_plan_404(client: TestClient, dem: Path):
+    resp = client.get("/plans/does-not-exist/profile", params={"dted_source": str(dem)})
+    assert resp.status_code == 404
+
+
 def _write_tile_fixture(path: Path) -> None:
     size = 64
     data = np.tile(np.linspace(0, 255, size, dtype="uint8"), (size, 1))

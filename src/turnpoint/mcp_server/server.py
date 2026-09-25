@@ -23,7 +23,9 @@ from turnpoint.geodesy import range_bearing as _range_bearing
 from turnpoint.store import open_default_overlay_store, open_default_store
 from turnpoint.terrain import DEFAULT_SAMPLE_INTERVAL_NM, METERS_PER_FT
 from turnpoint.terrain import elevation_m as _elevation_m
+from turnpoint.terrain import line_of_sight as _line_of_sight
 from turnpoint.terrain import terrain_clear as _terrain_clear
+from turnpoint.terrain import terrain_profile as _terrain_profile
 
 mcp = MCPServer("turnpoint", instructions=NOT_FOR_OPERATIONAL_USE, version=__version__)
 
@@ -171,6 +173,56 @@ def check_terrain_clearance(
             for leg in report.legs
         ],
         "violations": [asdict(v) for v in report.violations],
+        "meta": meta(dted_source=report.dted_source),
+    }
+
+
+@mcp.tool()
+def line_of_sight(
+    lat1: float,
+    lon1: float,
+    height1_ft: float,
+    lat2: float,
+    lon2: float,
+    height2_ft: float,
+    dted_source: str,
+    sample_interval_nm: float = DEFAULT_SAMPLE_INTERVAL_NM,
+) -> dict[str, Any]:
+    """Whether a straight line between two MSL-height points clears terrain
+    ("masking", docs/PLAN.md Phase 3). Heights are absolute MSL, always
+    caller-supplied — never a default real sensor/platform height.
+    """
+    result = _line_of_sight(
+        lat1, lon1, height1_ft, lat2, lon2, height2_ft, dted_source, sample_interval_nm
+    )
+    return {
+        "visible": result.visible,
+        "first_obstruction": (
+            asdict(result.first_obstruction) if result.first_obstruction else None
+        ),
+        "samples": [asdict(s) for s in result.samples],
+        "meta": meta(dted_source=result.dted_source),
+    }
+
+
+@mcp.tool()
+def terrain_profile(
+    plan_id: str, dted_source: str, sample_interval_nm: float = DEFAULT_SAMPLE_INTERVAL_NM
+) -> dict[str, Any]:
+    """Raw elevation samples along a persisted plan's route — terrain shape
+    under the planned track, no clearance-margin pass/fail framing.
+    """
+    route = _store.to_route(plan_id)
+    report = _terrain_profile(route, dted_source, sample_interval_nm)
+    return {
+        "legs": [
+            {
+                "from_name": leg.from_name,
+                "to_name": leg.to_name,
+                "samples": [asdict(s) for s in leg.samples],
+            }
+            for leg in report.legs
+        ],
         "meta": meta(dted_source=report.dted_source),
     }
 

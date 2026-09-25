@@ -22,6 +22,8 @@ from turnpoint.core.route import Turnpoint
 from turnpoint.formats import import_fv_drawing, import_geojson, import_gpx, import_kml
 from turnpoint.store import open_default_overlay_store, open_default_store
 from turnpoint.terrain import DEFAULT_SAMPLE_INTERVAL_NM, elevation_m, terrain_clear
+from turnpoint.terrain import line_of_sight as _line_of_sight
+from turnpoint.terrain import terrain_profile as _terrain_profile
 from turnpoint.tiles import open_source
 
 router = APIRouter()
@@ -147,6 +149,61 @@ def get_elevation(lat: float, lon: float, dted_source: str) -> dict[str, Any]:
         "elevation_m": value_m,
         "elevation_ft": value_m / 0.3048,
         "meta": meta(dted_source=dted_source),
+    }
+
+
+@router.get("/terrain/line-of-sight")
+def line_of_sight(
+    lat1: float,
+    lon1: float,
+    height1_ft: float,
+    lat2: float,
+    lon2: float,
+    height2_ft: float,
+    dted_source: str,
+    sample_interval_nm: float = DEFAULT_SAMPLE_INTERVAL_NM,
+) -> dict[str, Any]:
+    """Whether a straight line between two MSL-height points clears terrain
+    ("masking", docs/PLAN.md Phase 3)."""
+    try:
+        result = _line_of_sight(
+            lat1, lon1, height1_ft, lat2, lon2, height2_ft, dted_source, sample_interval_nm
+        )
+    except (ValueError, FileNotFoundError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "visible": result.visible,
+        "first_obstruction": (
+            asdict(result.first_obstruction) if result.first_obstruction else None
+        ),
+        "samples": [asdict(s) for s in result.samples],
+        "meta": meta(dted_source=result.dted_source),
+    }
+
+
+@router.get("/plans/{plan_id}/profile")
+def get_terrain_profile(
+    plan_id: str, dted_source: str, sample_interval_nm: float = DEFAULT_SAMPLE_INTERVAL_NM
+) -> dict[str, Any]:
+    """Raw elevation samples along a persisted plan's route."""
+    try:
+        route = _store.to_route(plan_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        report = _terrain_profile(route, dted_source, sample_interval_nm)
+    except (ValueError, FileNotFoundError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "legs": [
+            {
+                "from_name": leg.from_name,
+                "to_name": leg.to_name,
+                "samples": [asdict(s) for s in leg.samples],
+            }
+            for leg in report.legs
+        ],
+        "meta": meta(dted_source=report.dted_source),
     }
 
 

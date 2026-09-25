@@ -39,6 +39,8 @@ def test_tools_are_registered():
         "list_airports_near",
         "get_airport",
         "get_navaid",
+        "line_of_sight",
+        "terrain_profile",
     } <= names
 
 
@@ -188,3 +190,28 @@ def test_import_fv_drawing_overlay(monkeypatch):
     )
     assert imported["overlay"]["source_format"] == "fv-drawing"
     assert imported["fidelity_report"]["imported_count"] == 1
+
+
+def test_line_of_sight_blocked_by_hill(dem: Path):
+    out = server.line_of_sight(
+        0.5, 0.05, 1000.0, 0.5, 0.95, 1000.0, str(dem), sample_interval_nm=2.0
+    )
+    assert out["visible"] is False
+    assert out["first_obstruction"] is not None
+    assert out["meta"]["dted_source"] == str(dem)
+
+
+def test_line_of_sight_clear(dem: Path):
+    out = server.line_of_sight(
+        0.5, 0.05, 15000.0, 0.5, 0.95, 15000.0, str(dem), sample_interval_nm=2.0
+    )
+    assert out["visible"] is True
+    assert out["first_obstruction"] is None
+
+
+def test_terrain_profile_for_plan(dem: Path):
+    created = server.create_plan("profile plan", _turnpoints(), actor="test-agent")
+    out = server.terrain_profile(created["plan"]["id"], str(dem), sample_interval_nm=2.0)
+    assert len(out["legs"]) == 1
+    assert out["legs"][0]["samples"]
+    assert out["meta"]["dted_source"] == str(dem)
