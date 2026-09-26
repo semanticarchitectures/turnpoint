@@ -36,10 +36,11 @@ produce standard artifacts through an API. Humans watch and verify on the map.
 | `src/turnpoint/aero` | Airports, navaids, airspace from public FAA data |
 | `src/turnpoint/tiles` | Raster tile service over GDAL |
 | `src/turnpoint/store` | SQLite / GeoPackage plan store with provenance |
+| `src/turnpoint/scenario` | Scenario file loading and route scoring |
 | `src/turnpoint/mcp_server` | MCP tool surface for agents |
 | `src/turnpoint/api` | REST and WebSocket API for the viewer |
 | `viewer/` | MapLibre GL JS web viewer (TypeScript) |
-| `scenarios/` | Scenario definitions and scoring for agent evaluation |
+| `scenarios/` | Scenario definition files, demo scripts and fixture data |
 | `docs/` | Plan, decision records, format specs |
 
 ## Quick start

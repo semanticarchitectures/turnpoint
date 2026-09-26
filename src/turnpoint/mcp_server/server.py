@@ -20,6 +20,8 @@ from turnpoint.formats import import_fv_drawing, import_geojson, import_gpx, imp
 from turnpoint.geodesy import METERS_PER_NM
 from turnpoint.geodesy import destination_point as _destination_point
 from turnpoint.geodesy import range_bearing as _range_bearing
+from turnpoint.scenario import load_scenario as _load_scenario
+from turnpoint.scenario import score_route as _score_route
 from turnpoint.store import (
     open_default_overlay_store,
     open_default_store,
@@ -344,6 +346,35 @@ def check_threat_exposure(
         ],
         "exposed_samples": [asdict(s) for s in report.exposed_samples],
         "meta": meta(dted_source=report.dted_source),
+    }
+
+
+@mcp.tool()
+def score_plan(plan_id: str, scenario_path: str) -> dict[str, Any]:
+    """Score a persisted plan against a scenario file (docs/specs/scenario-format.md).
+
+    Checks terrain clearance, timing and threat exposure — never
+    airspace, which has no data source yet (``airspace_checked`` is
+    always false, decision 0013). A route whose start/end doesn't reach
+    the scenario's objective scores 0, but every other field is still
+    computed so the caller can see why.
+    """
+    route = _store.to_route(plan_id)
+    scenario = _load_scenario(scenario_path)
+    report = _score_route(route, scenario)
+    return {
+        "scenario_name": report.scenario_name,
+        "score": report.score,
+        "max_score": report.max_score,
+        "reached_objective": report.reached_objective,
+        "clear": report.clear,
+        "clearance_violation_legs": report.clearance_violation_legs,
+        "exposure": [asdict(e) for e in report.exposure],
+        "ete_min": report.ete_min,
+        "within_target_time": report.within_target_time,
+        "within_max_time": report.within_max_time,
+        "airspace_checked": report.airspace_checked,
+        "meta": meta(dted_source=scenario.dted_source, scenario_path=scenario_path),
     }
 
 

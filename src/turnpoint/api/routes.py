@@ -20,6 +20,8 @@ from turnpoint.aero import list_airports_near as _list_airports_near
 from turnpoint.core import fidelity_report_dict, meta
 from turnpoint.core.route import Turnpoint
 from turnpoint.formats import import_fv_drawing, import_geojson, import_gpx, import_kml
+from turnpoint.scenario import load_scenario as _load_scenario
+from turnpoint.scenario import score_route as _score_route
 from turnpoint.store import (
     open_default_overlay_store,
     open_default_store,
@@ -254,6 +256,45 @@ def get_exposure(
         ],
         "exposed_samples": [asdict(s) for s in report.exposed_samples],
         "meta": meta(dted_source=report.dted_source),
+    }
+
+
+@router.get("/plans/{plan_id}/score")
+def get_score(plan_id: str, scenario: str) -> dict[str, Any]:
+    """Score a persisted plan against a scenario file (docs/specs/scenario-format.md).
+
+    ``scenario`` is a filename resolved under DATA_DIR, same as
+    ``nasr_source`` -- unlike ``dted_source`` elsewhere, this is new
+    API-facing input this route adds, so it's sandboxed (decision 0013).
+    Checks terrain clearance, timing and threat exposure; never airspace
+    (``airspace_checked`` is always false -- no data source yet).
+    """
+    scenario_path = _resolve_data_path(scenario)
+    try:
+        route = _store.to_route(plan_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        loaded = _load_scenario(scenario_path)
+    except (ValueError, OSError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        report = _score_route(route, loaded)
+    except (ValueError, FileNotFoundError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "scenario_name": report.scenario_name,
+        "score": report.score,
+        "max_score": report.max_score,
+        "reached_objective": report.reached_objective,
+        "clear": report.clear,
+        "clearance_violation_legs": report.clearance_violation_legs,
+        "exposure": [asdict(e) for e in report.exposure],
+        "ete_min": report.ete_min,
+        "within_target_time": report.within_target_time,
+        "within_max_time": report.within_max_time,
+        "airspace_checked": report.airspace_checked,
+        "meta": meta(dted_source=loaded.dted_source, scenario_path=scenario),
     }
 
 

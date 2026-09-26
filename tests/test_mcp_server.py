@@ -1,4 +1,5 @@
 import asyncio
+import json
 from pathlib import Path
 
 import pytest
@@ -46,6 +47,7 @@ def test_tools_are_registered():
         "get_threat",
         "list_threats",
         "check_threat_exposure",
+        "score_plan",
     } <= names
 
 
@@ -287,3 +289,43 @@ def test_check_threat_exposure_out_of_range(dem: Path):
     )
     assert out["exposed"] is False
     assert out["exposed_samples"] == []
+
+
+def _write_scenario(tmp_path: Path, dem: Path, **overrides) -> Path:
+    data = {
+        "name": "mcp test scenario",
+        "dted_source": str(dem),
+        "objective": {
+            "start": {"name": "A", "lat": 0.5, "lon": 0.05, "altitude_ft": 15000.0},
+            "end": {"name": "B", "lat": 0.5, "lon": 0.95, "altitude_ft": 15000.0},
+            "clearance_margin_ft": 500.0,
+        },
+    }
+    data.update(overrides)
+    path = tmp_path / "scenario.json"
+    path.write_text(json.dumps(data))
+    return path
+
+
+def test_score_plan_clean_route(tmp_path: Path, dem: Path):
+    created = server.create_plan("high plan", _turnpoints(), actor="test-agent")
+    scenario_path = _write_scenario(tmp_path, dem)
+    out = server.score_plan(created["plan"]["id"], str(scenario_path))
+    assert out["reached_objective"] is True
+    assert out["clear"] is True
+    assert out["score"] == 100.0
+    assert out["airspace_checked"] is False
+    assert out["meta"]["dted_source"] == str(dem)
+
+
+def test_score_plan_deducts_for_clearance_violation(tmp_path: Path, dem: Path):
+    low = [
+        {"name": "A", "lat": 0.5, "lon": 0.05, "altitude_ft": 1000.0},
+        {"name": "B", "lat": 0.5, "lon": 0.95, "altitude_ft": 1000.0},
+    ]
+    created = server.create_plan("low plan", low, actor="test-agent")
+    scenario_path = _write_scenario(tmp_path, dem)
+    out = server.score_plan(created["plan"]["id"], str(scenario_path))
+    assert out["clear"] is False
+    assert out["clearance_violation_legs"] == 1
+    assert out["score"] == 75.0

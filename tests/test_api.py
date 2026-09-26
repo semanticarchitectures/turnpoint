@@ -3,6 +3,7 @@ synthetic fixtures — never real chart or elevation data."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -262,6 +263,68 @@ def test_exposure_missing_threat_404(client: TestClient, dem: Path):
     resp = client.get(
         f"/plans/{created['plan']['id']}/exposure",
         params={"threat_id": "does-not-exist", "dted_source": str(dem)},
+    )
+    assert resp.status_code == 404
+
+
+def _write_scenario_file(data_dir: Path, dem: Path, **overrides) -> str:
+    """Writes scenario.json under DATA_DIR (data_dir == the client fixture's
+    monkeypatched DATA_DIR, shared with dem's tmp_path in the same test) and
+    returns the filename the ``scenario`` query param resolves under it."""
+    data = {
+        "name": "api test scenario",
+        "dted_source": str(dem),
+        "objective": {
+            "start": {"name": "A", "lat": 0.5, "lon": 0.05, "altitude_ft": 15000.0},
+            "end": {"name": "B", "lat": 0.5, "lon": 0.95, "altitude_ft": 15000.0},
+            "clearance_margin_ft": 500.0,
+        },
+    }
+    data.update(overrides)
+    (data_dir / "scenario.json").write_text(json.dumps(data))
+    return "scenario.json"
+
+
+def test_score_clean_route(client: TestClient, dem: Path, tmp_path: Path):
+    created = client.post(
+        "/plans", json={"name": "t", "turnpoints": _turnpoints(), "actor": "u"}
+    ).json()
+    scenario = _write_scenario_file(tmp_path, dem)
+    resp = client.get(f"/plans/{created['plan']['id']}/score", params={"scenario": scenario})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["reached_objective"] is True
+    assert body["score"] == 100.0
+    assert body["airspace_checked"] is False
+    assert body["meta"]["dted_source"] == str(dem)
+
+
+def test_score_deducts_for_clearance_violation(client: TestClient, dem: Path, tmp_path: Path):
+    low = [
+        {"name": "A", "lat": 0.5, "lon": 0.05, "altitude_ft": 1000.0},
+        {"name": "B", "lat": 0.5, "lon": 0.95, "altitude_ft": 1000.0},
+    ]
+    created = client.post("/plans", json={"name": "t", "turnpoints": low, "actor": "u"}).json()
+    scenario = _write_scenario_file(tmp_path, dem)
+    resp = client.get(f"/plans/{created['plan']['id']}/score", params={"scenario": scenario})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["clear"] is False
+    assert body["score"] == 75.0
+
+
+def test_score_missing_plan_404(client: TestClient, dem: Path, tmp_path: Path):
+    scenario = _write_scenario_file(tmp_path, dem)
+    resp = client.get("/plans/does-not-exist/score", params={"scenario": scenario})
+    assert resp.status_code == 404
+
+
+def test_score_missing_scenario_file_404(client: TestClient, dem: Path):
+    created = client.post(
+        "/plans", json={"name": "t", "turnpoints": _turnpoints(), "actor": "u"}
+    ).json()
+    resp = client.get(
+        f"/plans/{created['plan']['id']}/score", params={"scenario": "does-not-exist.json"}
     )
     assert resp.status_code == 404
 
