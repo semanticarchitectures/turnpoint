@@ -27,6 +27,7 @@ from turnpoint.store import (
 )
 from turnpoint.terrain import DEFAULT_SAMPLE_INTERVAL_NM, elevation_m, terrain_clear
 from turnpoint.terrain import line_of_sight as _line_of_sight
+from turnpoint.terrain import route_exposure as _route_exposure
 from turnpoint.terrain import terrain_profile as _terrain_profile
 from turnpoint.tiles import open_source
 
@@ -219,6 +220,39 @@ def get_terrain_profile(
             }
             for leg in report.legs
         ],
+        "meta": meta(dted_source=report.dted_source),
+    }
+
+
+@router.get("/plans/{plan_id}/exposure")
+def get_exposure(
+    plan_id: str,
+    threat_id: str,
+    dted_source: str,
+    sample_interval_nm: float = DEFAULT_SAMPLE_INTERVAL_NM,
+) -> dict[str, Any]:
+    """Where along a persisted plan a persisted threat's sensor can see the
+    aircraft -- in engagement range and not masked by terrain."""
+    try:
+        route = _store.to_route(plan_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        threat = _threat_store.get_threat(threat_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        report = _route_exposure(route, threat, dted_source, sample_interval_nm)
+    except (ValueError, FileNotFoundError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "exposed": report.exposed,
+        "threat_id": report.threat_id,
+        "legs": [
+            {"from_name": leg.from_name, "to_name": leg.to_name, "exposed": leg.exposed}
+            for leg in report.legs
+        ],
+        "exposed_samples": [asdict(s) for s in report.exposed_samples],
         "meta": meta(dted_source=report.dted_source),
     }
 

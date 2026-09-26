@@ -28,6 +28,7 @@ from turnpoint.store import (
 from turnpoint.terrain import DEFAULT_SAMPLE_INTERVAL_NM, METERS_PER_FT
 from turnpoint.terrain import elevation_m as _elevation_m
 from turnpoint.terrain import line_of_sight as _line_of_sight
+from turnpoint.terrain import route_exposure as _route_exposure
 from turnpoint.terrain import terrain_clear as _terrain_clear
 from turnpoint.terrain import terrain_profile as _terrain_profile
 
@@ -314,6 +315,36 @@ def get_threat(threat_id: str) -> dict[str, Any]:
 def list_threats() -> dict[str, Any]:
     """List every persisted threat."""
     return {"threats": [asdict(t) for t in _threat_store.list_threats()], "meta": meta()}
+
+
+@mcp.tool()
+def check_threat_exposure(
+    plan_id: str,
+    threat_id: str,
+    dted_source: str,
+    sample_interval_nm: float = DEFAULT_SAMPLE_INTERVAL_NM,
+) -> dict[str, Any]:
+    """Where along a persisted plan a persisted threat's sensor can see the aircraft.
+
+    A sample is exposed when it is within the threat's engagement_radius_nm
+    AND terrain does not mask line-of-sight between the threat's sensor
+    (ground elevation at the threat's position plus its notional
+    sensor_height_ft) and the sample's planned altitude. Call once per
+    threat for a scenario with several.
+    """
+    route = _store.to_route(plan_id)
+    threat = _threat_store.get_threat(threat_id)
+    report = _route_exposure(route, threat, dted_source, sample_interval_nm)
+    return {
+        "exposed": report.exposed,
+        "threat_id": report.threat_id,
+        "legs": [
+            {"from_name": leg.from_name, "to_name": leg.to_name, "exposed": leg.exposed}
+            for leg in report.legs
+        ],
+        "exposed_samples": [asdict(s) for s in report.exposed_samples],
+        "meta": meta(dted_source=report.dted_source),
+    }
 
 
 @mcp.tool()

@@ -45,6 +45,7 @@ def test_tools_are_registered():
         "create_threat",
         "get_threat",
         "list_threats",
+        "check_threat_exposure",
     } <= names
 
 
@@ -242,3 +243,47 @@ def test_list_threats_includes_created_threat():
 def test_get_missing_threat_raises():
     with pytest.raises(KeyError):
         server.get_threat("does-not-exist")
+
+
+def test_check_threat_exposure_masked_by_hill(dem: Path):
+    # Threat at A's position (0.5, 0.05); at 1000 ft, the far side of the
+    # hill (which spans lon 0.45-0.55) is masked -- not the whole route,
+    # since the near side before the hill is unobstructed.
+    low = [
+        {"name": "A", "lat": 0.5, "lon": 0.05, "altitude_ft": 1000.0},
+        {"name": "B", "lat": 0.5, "lon": 0.95, "altitude_ft": 1000.0},
+    ]
+    created = server.create_plan("low plan", low, actor="test-agent")
+    threat = server.create_threat(
+        "hidden SAM", "NOTIONAL-SAM-A", 0.5, 0.05, 100.0, actor="test-agent"
+    )
+    out = server.check_threat_exposure(
+        created["plan"]["id"], threat["threat"]["id"], str(dem), sample_interval_nm=2.0
+    )
+    assert out["exposed"] is True
+    assert all(s["distance_along_leg_nm"] < 30.0 for s in out["exposed_samples"])
+    assert out["meta"]["dted_source"] == str(dem)
+
+
+def test_check_threat_exposure_visible_over_hill(dem: Path):
+    created = server.create_plan("high plan", _turnpoints(), actor="test-agent")
+    threat = server.create_threat(
+        "watching SAM", "NOTIONAL-SAM-A", 0.5, 0.05, 100.0, actor="test-agent"
+    )
+    out = server.check_threat_exposure(
+        created["plan"]["id"], threat["threat"]["id"], str(dem), sample_interval_nm=2.0
+    )
+    assert out["exposed"] is True
+    assert out["exposed_samples"]
+
+
+def test_check_threat_exposure_out_of_range(dem: Path):
+    created = server.create_plan("high plan", _turnpoints(), actor="test-agent")
+    threat = server.create_threat(
+        "distant SAM", "NOTIONAL-SAM-A", 0.1, 0.1, 5.0, actor="test-agent"
+    )
+    out = server.check_threat_exposure(
+        created["plan"]["id"], threat["threat"]["id"], str(dem), sample_interval_nm=2.0
+    )
+    assert out["exposed"] is False
+    assert out["exposed_samples"] == []

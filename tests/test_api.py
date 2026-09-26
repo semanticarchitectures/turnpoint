@@ -197,6 +197,75 @@ def test_get_missing_threat_404(client: TestClient):
     assert client.get("/threats/does-not-exist").status_code == 404
 
 
+def _create_threat(client: TestClient, lat: float, lon: float, engagement_radius_nm: float) -> str:
+    resp = client.post(
+        "/threats",
+        json={
+            "name": "test threat",
+            "threat_type": "NOTIONAL-SAM-A",
+            "lat": lat,
+            "lon": lon,
+            "engagement_radius_nm": engagement_radius_nm,
+            "actor": "u",
+        },
+    )
+    return resp.json()["threat"]["id"]
+
+
+def test_exposure_masked_beyond_hill(client: TestClient, dem: Path):
+    # Threat at A's position (0.5, 0.05); at 1000 ft, the far side of the
+    # hill (which spans lon 0.45-0.55) is masked, though the near side is not.
+    low = [
+        {"name": "A", "lat": 0.5, "lon": 0.05, "altitude_ft": 1000.0},
+        {"name": "B", "lat": 0.5, "lon": 0.95, "altitude_ft": 1000.0},
+    ]
+    created = client.post("/plans", json={"name": "t", "turnpoints": low, "actor": "u"}).json()
+    threat_id = _create_threat(client, 0.5, 0.05, 100.0)
+    resp = client.get(
+        f"/plans/{created['plan']['id']}/exposure",
+        params={"threat_id": threat_id, "dted_source": str(dem), "sample_interval_nm": 2.0},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert all(s["distance_along_leg_nm"] < 30.0 for s in body["exposed_samples"])
+
+
+def test_exposure_visible_over_hill(client: TestClient, dem: Path):
+    created = client.post(
+        "/plans", json={"name": "t", "turnpoints": _turnpoints(), "actor": "u"}
+    ).json()
+    threat_id = _create_threat(client, 0.5, 0.05, 100.0)
+    resp = client.get(
+        f"/plans/{created['plan']['id']}/exposure",
+        params={"threat_id": threat_id, "dted_source": str(dem), "sample_interval_nm": 2.0},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["exposed"] is True
+    assert body["exposed_samples"]
+    assert body["meta"]["dted_source"] == str(dem)
+
+
+def test_exposure_missing_plan_404(client: TestClient, dem: Path):
+    threat_id = _create_threat(client, 0.5, 0.05, 100.0)
+    resp = client.get(
+        "/plans/does-not-exist/exposure",
+        params={"threat_id": threat_id, "dted_source": str(dem)},
+    )
+    assert resp.status_code == 404
+
+
+def test_exposure_missing_threat_404(client: TestClient, dem: Path):
+    created = client.post(
+        "/plans", json={"name": "t", "turnpoints": _turnpoints(), "actor": "u"}
+    ).json()
+    resp = client.get(
+        f"/plans/{created['plan']['id']}/exposure",
+        params={"threat_id": "does-not-exist", "dted_source": str(dem)},
+    )
+    assert resp.status_code == 404
+
+
 def _write_tile_fixture(path: Path) -> None:
     size = 64
     data = np.tile(np.linspace(0, 255, size, dtype="uint8"), (size, 1))

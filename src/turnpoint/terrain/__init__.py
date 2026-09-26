@@ -10,6 +10,12 @@ from turnpoint.terrain.clearance import (
     terrain_clear,
 )
 from turnpoint.terrain.dted import METERS_PER_FT, elevation_m
+from turnpoint.terrain.exposure import (
+    ExposureReport,
+    ExposureSample,
+    LegExposure,
+    route_exposure,
+)
 from turnpoint.terrain.los import (
     LegProfile,
     LineOfSightResult,
@@ -25,7 +31,10 @@ __all__ = [
     "METERS_PER_FT",
     "ClearanceReport",
     "ClearanceSample",
+    "ExposureReport",
+    "ExposureSample",
     "LegClearance",
+    "LegExposure",
     "LegProfile",
     "LineOfSightResult",
     "LineOfSightSample",
@@ -33,6 +42,7 @@ __all__ = [
     "ProfileSample",
     "elevation_m",
     "line_of_sight",
+    "route_exposure",
     "terrain_clear",
     "terrain_profile",
 ]
