@@ -26,9 +26,17 @@ interface Plan {
   turnpoints: Turnpoint[];
 }
 
+interface Leg {
+  from_name: string;
+  to_name: string;
+  distance_nm: number;
+  true_course_deg: number;
+  ete_min: number | null;
+}
+
 interface PlanResponse {
   plan: Plan;
-  legs: unknown[];
+  legs: Leg[];
 }
 
 type GeometryType = "point" | "line" | "polygon";
@@ -101,7 +109,13 @@ function addBasemapIfRequested(): void {
   map.addLayer({ id: "basemap", type: "raster", source: "basemap" });
 }
 
-function renderPlan(plan: Plan): [number, number][] {
+// Text halo matches each layer's own color scheme -- readable over the
+// basemap or another layer without needing a shared label background.
+function textHalo(color: string): { "text-color": string; "text-halo-color": string; "text-halo-width": number } {
+  return { "text-color": color, "text-halo-color": "#ffffff", "text-halo-width": 1.5 };
+}
+
+function renderPlan(plan: Plan, legs: Leg[]): [number, number][] {
   const coordinates: [number, number][] = plan.turnpoints.map((tp) => [tp.lon, tp.lat]);
 
   map.addSource("route-line", {
@@ -141,6 +155,47 @@ function renderPlan(plan: Plan): [number, number][] {
       "circle-stroke-color": "#ffffff",
     },
   });
+  map.addLayer({
+    id: "route-point-labels",
+    type: "symbol",
+    source: "route-points",
+    layout: {
+      "text-field": ["get", "name"],
+      "text-size": 12,
+      "text-offset": [0, 1.3],
+      "text-anchor": "top",
+    },
+    paint: textHalo("#dc2626"),
+  });
+
+  // One label per leg, at the arithmetic midpoint between its turnpoints
+  // -- a visual placement, not a geodesic one; distance_nm/true_course_deg
+  // themselves come straight from the API's already-computed legs, never
+  // recomputed client-side (decision 0003).
+  const legLabels: Feature<Geometry>[] = legs.map((leg, i) => ({
+    type: "Feature",
+    properties: {
+      label: `${leg.distance_nm.toFixed(1)} nm · ${Math.round(leg.true_course_deg)}°T`,
+    },
+    geometry: {
+      type: "Point",
+      coordinates: [
+        (plan.turnpoints[i].lon + plan.turnpoints[i + 1].lon) / 2,
+        (plan.turnpoints[i].lat + plan.turnpoints[i + 1].lat) / 2,
+      ],
+    },
+  }));
+  map.addSource("route-leg-labels", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: legLabels },
+  });
+  map.addLayer({
+    id: "route-leg-labels",
+    type: "symbol",
+    source: "route-leg-labels",
+    layout: { "text-field": ["get", "label"], "text-size": 11 },
+    paint: textHalo("#1d4ed8"),
+  });
 
   return coordinates;
 }
@@ -175,6 +230,23 @@ function featureCollection(features: OverlayFeature[]): FeatureCollection {
   return { type: "FeatureCollection", features: features.map(overlayFeatureToGeoJSON) };
 }
 
+// Arithmetic mean of the ring's vertices -- a label placement, not a true
+// geometric centroid; fine for a small notional polygon, not for a
+// concave or very large one.
+function polygonCentroid(feature: OverlayFeature): [number, number] {
+  const n = feature.coordinates.length;
+  const sumLat = feature.coordinates.reduce((s, [lat]) => s + lat, 0);
+  const sumLon = feature.coordinates.reduce((s, [, lon]) => s + lon, 0);
+  return [sumLon / n, sumLat / n];
+}
+
+// Only named features get a label -- not every source format sets `name`
+// (fv-drawing features generally don't), and an empty text box is worse
+// than no label.
+function hasName(): ["has", string] {
+  return ["has", "name"];
+}
+
 function renderOverlay(overlay: Overlay): [number, number][] {
   const points = overlay.features.filter((f) => f.geometry_type === "point");
   const lines = overlay.features.filter((f) => f.geometry_type === "line");
@@ -194,6 +266,25 @@ function renderOverlay(overlay: Overlay): [number, number][] {
       source: "overlay-polygons",
       paint: { "line-color": "#0d9488", "line-width": 2 },
     });
+    map.addSource("overlay-polygon-labels", {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features: polygons.map((f) => ({
+          type: "Feature",
+          properties: f.properties,
+          geometry: { type: "Point", coordinates: polygonCentroid(f) },
+        })),
+      },
+    });
+    map.addLayer({
+      id: "overlay-polygon-labels",
+      type: "symbol",
+      source: "overlay-polygon-labels",
+      filter: hasName(),
+      layout: { "text-field": ["get", "name"], "text-size": 12 },
+      paint: textHalo("#0f766e"),
+    });
   }
 
   if (lines.length > 0) {
@@ -203,6 +294,18 @@ function renderOverlay(overlay: Overlay): [number, number][] {
       type: "line",
       source: "overlay-lines",
       paint: { "line-color": "#7c3aed", "line-width": 2, "line-dasharray": [2, 2] },
+    });
+    map.addLayer({
+      id: "overlay-line-labels",
+      type: "symbol",
+      source: "overlay-lines",
+      filter: hasName(),
+      layout: {
+        "text-field": ["get", "name"],
+        "text-size": 12,
+        "symbol-placement": "line-center",
+      },
+      paint: textHalo("#6d28d9"),
     });
   }
 
@@ -218,6 +321,19 @@ function renderOverlay(overlay: Overlay): [number, number][] {
         "circle-stroke-width": 2,
         "circle-stroke-color": "#ffffff",
       },
+    });
+    map.addLayer({
+      id: "overlay-point-labels",
+      type: "symbol",
+      source: "overlay-points",
+      filter: hasName(),
+      layout: {
+        "text-field": ["get", "name"],
+        "text-size": 12,
+        "text-offset": [0, 1.2],
+        "text-anchor": "top",
+      },
+      paint: textHalo("#b45309"),
     });
   }
 
@@ -285,11 +401,14 @@ function renderThreats(threats: Threat[]): [number, number][] {
   for (const threat of threats) {
     const el = document.createElement("div");
     el.title = `${threat.name} (${threat.threat_type})`;
+    el.style.position = "relative";
     let anchor: "center" | "top-left" = "center";
     if (threat.sidc) {
       const symbol = new ms.Symbol(threat.sidc, { size: 24 });
       const symbolAnchor = symbol.getAnchor();
-      el.style.position = "relative";
+      const symbolSize = symbol.getSize();
+      el.style.width = `${symbolSize.width}px`;
+      el.style.height = `${symbolSize.height}px`;
       const img = document.createElement("img");
       img.src = symbol.toDataURL();
       img.style.position = "absolute";
@@ -304,6 +423,20 @@ function renderThreats(threats: Threat[]): [number, number][] {
       el.style.background = "#991b1b";
       el.style.border = "2px solid #ffffff";
     }
+
+    const label = document.createElement("div");
+    label.textContent = threat.name;
+    label.style.position = "absolute";
+    label.style.top = "100%";
+    label.style.left = "50%";
+    label.style.transform = "translateX(-50%)";
+    label.style.marginTop = "2px";
+    label.style.whiteSpace = "nowrap";
+    label.style.font = "11px system-ui, sans-serif";
+    label.style.color = "#991b1b";
+    label.style.textShadow = "0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff";
+    el.appendChild(label);
+
     new Marker({ element: el, anchor }).setLngLat([threat.lon, threat.lat]).addTo(map);
   }
 
@@ -347,7 +480,7 @@ async function loadAll(): Promise<void> {
   if (planId) {
     try {
       const data = await fetchJSON<PlanResponse>(`/plans/${encodeURIComponent(planId)}`);
-      allCoordinates.push(...renderPlan(data.plan));
+      allCoordinates.push(...renderPlan(data.plan, data.legs));
       statusParts.push(`Plan "${data.plan.name}" — ${data.legs.length} leg(s)`);
     } catch (err) {
       statusParts.push(`Failed to load plan: ${(err as Error).message}`);
