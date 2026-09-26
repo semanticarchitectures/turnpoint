@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 from pathlib import Path
 
@@ -49,6 +50,7 @@ def test_tools_are_registered():
         "check_threat_exposure",
         "score_plan",
         "list_import_formats",
+        "create_route_card",
     } <= names
 
 
@@ -85,6 +87,26 @@ def test_list_plans_includes_created_plan():
     created = server.create_plan("listed plan", _turnpoints(), actor="test-agent")
     plans = server.list_plans()["plans"]
     assert created["plan"]["id"] in {p["id"] for p in plans}
+
+
+def test_create_route_card_returns_pdf():
+    created = server.create_plan("card plan", _turnpoints(), actor="test-agent")
+    out = server.create_route_card(created["plan"]["id"])
+    pdf_bytes = base64.b64decode(out["pdf_base64"])
+    assert pdf_bytes.startswith(b"%PDF")
+
+
+def test_create_route_card_with_groundspeed():
+    created = server.create_plan("card plan", _turnpoints(), actor="test-agent")
+    out = server.create_route_card(created["plan"]["id"], groundspeed_kt=120.0)
+    pdf_bytes = base64.b64decode(out["pdf_base64"])
+    assert pdf_bytes.startswith(b"%PDF")
+
+
+def test_create_route_card_rejects_bad_groundspeed():
+    created = server.create_plan("card plan", _turnpoints(), actor="test-agent")
+    with pytest.raises(ValueError):
+        server.create_route_card(created["plan"]["id"], groundspeed_kt=0)
 
 
 def test_get_elevation_names_data_source(dem: Path):

@@ -76,6 +76,42 @@ def test_list_plans(client: TestClient):
     assert any(p["name"] == "t1" for p in resp.json()["plans"])
 
 
+def test_route_card(client: TestClient):
+    created = client.post(
+        "/plans", json={"name": "t", "turnpoints": _turnpoints(), "actor": "u"}
+    ).json()
+    resp = client.get(f"/plans/{created['plan']['id']}/route-card.pdf")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/pdf"
+    assert resp.content.startswith(b"%PDF")
+
+
+def test_route_card_with_groundspeed(client: TestClient):
+    created = client.post(
+        "/plans", json={"name": "t", "turnpoints": _turnpoints(), "actor": "u"}
+    ).json()
+    resp = client.get(
+        f"/plans/{created['plan']['id']}/route-card.pdf", params={"groundspeed_kt": 120.0}
+    )
+    assert resp.status_code == 200
+    assert resp.content.startswith(b"%PDF")
+
+
+def test_route_card_rejects_bad_groundspeed(client: TestClient):
+    created = client.post(
+        "/plans", json={"name": "t", "turnpoints": _turnpoints(), "actor": "u"}
+    ).json()
+    resp = client.get(
+        f"/plans/{created['plan']['id']}/route-card.pdf", params={"groundspeed_kt": 0}
+    )
+    assert resp.status_code == 400
+
+
+def test_route_card_missing_plan_404(client: TestClient):
+    resp = client.get("/plans/does-not-exist/route-card.pdf")
+    assert resp.status_code == 404
+
+
 def test_elevation(client: TestClient, dem: Path):
     resp = client.get(
         "/terrain/elevation", params={"lat": 0.05, "lon": 0.05, "dted_source": str(dem)}

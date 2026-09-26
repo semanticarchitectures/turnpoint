@@ -21,6 +21,7 @@ from turnpoint.core import fidelity_report_dict, meta
 from turnpoint.core.route import Turnpoint
 from turnpoint.formats import get_importer as _get_importer
 from turnpoint.formats import list_importers as _list_importers
+from turnpoint.products import build_route_card as _build_route_card
 from turnpoint.scenario import load_scenario as _load_scenario
 from turnpoint.scenario import score_route as _score_route
 from turnpoint.store import (
@@ -113,6 +114,23 @@ def list_plans() -> dict[str, Any]:
 @router.get("/plans/{plan_id}")
 def get_plan(plan_id: str) -> dict[str, Any]:
     return _plan_response(plan_id)
+
+
+@router.get("/plans/{plan_id}/route-card.pdf")
+def get_route_card(plan_id: str, groundspeed_kt: float | None = None) -> Response:
+    """A one-page printable PDF summarizing the plan's turnpoints and legs
+    (docs/PLAN.md Phase 4, "print products") -- a table, not a plotted
+    chart image."""
+    try:
+        plan = _store.get_plan(plan_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        legs = _store.to_route(plan_id).legs(groundspeed_kt)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    pdf_bytes = _build_route_card(plan, legs)
+    return Response(content=pdf_bytes, media_type="application/pdf")
 
 
 @router.get("/plans/{plan_id}/clearance")

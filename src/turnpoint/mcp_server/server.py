@@ -6,6 +6,7 @@ versions used, so that agent plans can be replayed and audited (AGENTS.md, secti
 
 from __future__ import annotations
 
+import base64
 from dataclasses import asdict
 from typing import Any
 
@@ -21,6 +22,7 @@ from turnpoint.formats import list_importers as _list_importers
 from turnpoint.geodesy import METERS_PER_NM
 from turnpoint.geodesy import destination_point as _destination_point
 from turnpoint.geodesy import range_bearing as _range_bearing
+from turnpoint.products import build_route_card as _build_route_card
 from turnpoint.scenario import load_scenario as _load_scenario
 from turnpoint.scenario import score_route as _score_route
 from turnpoint.store import (
@@ -129,6 +131,21 @@ def get_plan(plan_id: str) -> dict[str, Any]:
 def list_plans() -> dict[str, Any]:
     """List every persisted plan."""
     return {"plans": [asdict(p) for p in _store.list_plans()], "meta": meta()}
+
+
+@mcp.tool()
+def create_route_card(plan_id: str, groundspeed_kt: float | None = None) -> dict[str, Any]:
+    """A one-page printable PDF (base64-encoded) summarizing a persisted
+    plan's turnpoints and legs -- distance, true course and, with
+    groundspeed_kt, ETE per leg (docs/PLAN.md Phase 4, "print products").
+    Deterministic: the same plan and groundspeed always produce the same
+    PDF bytes (AGENTS.md section 6). A table of turnpoints and legs, not
+    a plotted chart image.
+    """
+    plan = _store.get_plan(plan_id)
+    legs = _store.to_route(plan_id).legs(groundspeed_kt)
+    pdf_bytes = _build_route_card(plan, legs)
+    return {"pdf_base64": base64.b64encode(pdf_bytes).decode("ascii"), "meta": meta()}
 
 
 @mcp.tool()

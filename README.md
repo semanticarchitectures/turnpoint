@@ -37,6 +37,7 @@ produce standard artifacts through an API. Humans watch and verify on the map.
 | `src/turnpoint/tiles` | Raster tile service over GDAL |
 | `src/turnpoint/store` | SQLite / GeoPackage plan store with provenance |
 | `src/turnpoint/scenario` | Scenario file loading and route scoring |
+| `src/turnpoint/products` | Print products (PDF route card) built from a plan |
 | `src/turnpoint/mcp_server` | MCP tool surface for agents |
 | `src/turnpoint/api` | REST and WebSocket API for the viewer |
 | `viewer/` | MapLibre GL JS web viewer (TypeScript) |

@@ -21,6 +21,8 @@ Add a row **before** adding the dependency. Verify the license at the pinned ver
 | gpxpy | GPX import for `src/turnpoint/formats/gpx.py` | Apache-2.0 | 2026-09-24, from package metadata (`License: Apache License, Version 2.0`) | Runtime; `fastkml` (LGPL) considered and rejected for KML, see decision 0010's Phase 2 research notes |
 | access-parser | Reads `.mdb`/`.accdb` for `src/turnpoint/formats/fvimport/drawing.py` | Apache-2.0 | 2026-09-24, from `LICENSE` in the installed wheel's dist-info, read directly | Runtime; pure Python, no dependency on `mdbtools` (GPL, forbidden by `AGENTS.md`) — see decision 0012 |
 | milsymbol 3.0.4 | MIL-STD-2525/APP6 symbol rendering for `viewer/` (threat `sidc`, M23) | MIT | 2026-09-26, from `license` field and `LICENSE`-equivalent in the installed package's own `package.json`, read directly | Runtime (browser); logged after the fact — should have been added before `npm install`, see `AGENTS.md` rule 3 |
+| reportlab 5.0.x | PDF rendering for `src/turnpoint/products` (route card, Phase 4 "print products") | BSD-3-Clause-style | 2026-09-26, from `licenses/LICENSE` in the installed wheel's dist-info, read directly, not from the `METADATA` summary line alone | Runtime; built with `invariant=1` for byte-reproducible output (AGENTS.md section 6) |
+| Pillow 12.x | Image handling; a transitive dependency reportlab imports directly (`reportlab.lib.utils`) | MIT-CMU | 2026-09-26, from `License-Expression: MIT-CMU` and `licenses/LICENSE` in the installed wheel's dist-info, read directly | Runtime; not imported by Turnpoint code itself, logged because reportlab cannot run without it |
 
 Planned, not yet added: pyproj, Shapely, mgrs.
 Do not add GPL or LGPL components, or non-commercial data such as

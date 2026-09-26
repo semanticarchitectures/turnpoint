@@ -27,6 +27,7 @@ dependencies = [
   "uvicorn[standard]>=0.30",
   "gpxpy>=1.6",
   "access-parser>=0.0.6",
+  "reportlab>=5.0",
 ]
 
 [project.optional-dependencies]
