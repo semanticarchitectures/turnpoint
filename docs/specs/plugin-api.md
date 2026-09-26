@@ -10,8 +10,7 @@ overlay renderers is deferred until a concrete need appears.
 An importer is any callable with this signature:
 
 ```python
-def import_myformat(path: str | Path) -> tuple[list[OverlayFeature], FidelityReport]:
-    ...
+def import_myformat(path: str | Path) -> tuple[list[OverlayFeature], FidelityReport]: ...
 ```
 
 `OverlayFeature` and `FidelityReport` are `turnpoint.core.overlay`/

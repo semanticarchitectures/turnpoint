@@ -45,6 +45,10 @@ packages = ["src/turnpoint"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# So `tests/test_fetch_faa_chart.py` can `import scripts.fetch_faa_chart`
+# under a plain `pytest` invocation (not just `python -m pytest`, which
+# adds the cwd to sys.path on its own).
+pythonpath = ["."]
 addopts = "-q"
 
 [tool.ruff]
