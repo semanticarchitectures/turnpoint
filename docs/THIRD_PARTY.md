@@ -20,7 +20,8 @@ Add a row **before** adding the dependency. Verify the license at the pinned ver
 | typescript | Viewer language/build | Apache-2.0 | 2026-09-22, `npm view typescript license` | Dev only |
 | gpxpy | GPX import for `src/turnpoint/formats/gpx.py` | Apache-2.0 | 2026-09-24, from package metadata (`License: Apache License, Version 2.0`) | Runtime; `fastkml` (LGPL) considered and rejected for KML, see decision 0010's Phase 2 research notes |
 | access-parser | Reads `.mdb`/`.accdb` for `src/turnpoint/formats/fvimport/drawing.py` | Apache-2.0 | 2026-09-24, from `LICENSE` in the installed wheel's dist-info, read directly | Runtime; pure Python, no dependency on `mdbtools` (GPL, forbidden by `AGENTS.md`) — see decision 0012 |
+| milsymbol 3.0.4 | MIL-STD-2525/APP6 symbol rendering for `viewer/` (threat `sidc`, M23) | MIT | 2026-09-26, from `license` field and `LICENSE`-equivalent in the installed package's own `package.json`, read directly | Runtime (browser); logged after the fact — should have been added before `npm install`, see `AGENTS.md` rule 3 |
 
-Planned, not yet added: pyproj, Shapely, mgrs, milsymbol.
+Planned, not yet added: pyproj, Shapely, mgrs.
 Do not add GPL or LGPL components, or non-commercial data such as
 openAIP, without a decision record.
