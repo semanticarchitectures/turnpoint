@@ -10,7 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "maplibre-gl": "^6.10.0"
+    "maplibre-gl": "^6.10.0",
+    "milsymbol": "^3.0.4"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
