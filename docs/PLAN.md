@@ -70,7 +70,10 @@ directing an AI coding agent; Phase 2 roughly 2 to 4 more weeks. Judgment estima
 
 ## Open items
 
-- Route file (`.rte`) strategy: own documented route schema is primary; `.rte` import is best effort.
+- Route file (`.rte`) import: researched 2026-09-26, no public documentation of
+  FalconView/PFPS's `.rte` structure was found (see `docs/specs/README.md`) — same
+  outcome as `fv-local-points-import.md`. Deferred until documentation surfaces;
+  Turnpoint's own route schema (`docs/specs/route-schema.md`) remains primary.
 - Relationship to ENCAP and the program office knowledge base: separate repos, one-directional use.
 - Trademark search on "Turnpoint" before the first tagged release.
 - Short export-control review before the first tagged release.
