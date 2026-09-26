@@ -48,6 +48,7 @@ def test_tools_are_registered():
         "list_threats",
         "check_threat_exposure",
         "score_plan",
+        "list_import_formats",
     } <= names
 
 
@@ -150,6 +151,11 @@ def test_import_kml_overlay():
 def test_import_overlay_unsupported_format_raises():
     with pytest.raises(ValueError):
         server.import_overlay("nope", "x.nope", "t", actor="test-agent")
+
+
+def test_list_import_formats_includes_built_ins():
+    formats = server.list_import_formats()["formats"]
+    assert {"geojson", "gpx", "kml", "fv-drawing"} <= set(formats)
 
 
 def test_list_airports_near_names_nasr_cycle():

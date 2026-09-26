@@ -425,6 +425,13 @@ def test_import_overlay_missing_file_404(client: TestClient):
     assert resp.status_code == 404
 
 
+def test_list_import_formats_includes_built_ins(client: TestClient):
+    resp = client.get("/overlays/formats")
+    assert resp.status_code == 200
+    formats = resp.json()["formats"]
+    assert {"geojson", "gpx", "kml", "fv-drawing"} <= set(formats)
+
+
 def test_get_missing_overlay_404(client: TestClient):
     assert client.get("/overlays/does-not-exist").status_code == 404
 

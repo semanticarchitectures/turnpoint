@@ -19,7 +19,8 @@ from turnpoint.aero import get_navaid as _get_navaid
 from turnpoint.aero import list_airports_near as _list_airports_near
 from turnpoint.core import fidelity_report_dict, meta
 from turnpoint.core.route import Turnpoint
-from turnpoint.formats import import_fv_drawing, import_geojson, import_gpx, import_kml
+from turnpoint.formats import get_importer as _get_importer
+from turnpoint.formats import list_importers as _list_importers
 from turnpoint.scenario import load_scenario as _load_scenario
 from turnpoint.scenario import score_route as _score_route
 from turnpoint.store import (
@@ -37,13 +38,6 @@ router = APIRouter()
 _store = open_default_store()
 _overlay_store = open_default_overlay_store()
 _threat_store = open_default_threat_store()
-
-_IMPORTERS = {
-    "geojson": import_geojson,
-    "gpx": import_gpx,
-    "kml": import_kml,
-    "fv-drawing": import_fv_drawing,
-}
 
 # Tile sources are resolved under this directory only (data/README.md:
 # public, local data). TURNPOINT_DATA_DIR overrides it, mainly for tests.
@@ -318,9 +312,10 @@ def _overlay_response(overlay_id: str) -> dict[str, Any]:
 
 @router.post("/overlays/import", status_code=201)
 def import_overlay(body: OverlayImport) -> dict[str, Any]:
-    importer = _IMPORTERS.get(body.format)
-    if importer is None:
-        raise HTTPException(status_code=400, detail=f"unsupported format: {body.format}")
+    try:
+        importer = _get_importer(body.format)
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     path = _resolve_data_path(body.path)
     try:
         features, fidelity_report = importer(path)
@@ -339,6 +334,15 @@ def import_overlay(body: OverlayImport) -> dict[str, Any]:
 @router.get("/overlays")
 def list_overlays() -> dict[str, Any]:
     return {"overlays": [asdict(o) for o in _overlay_store.list_overlays()], "meta": meta()}
+
+
+@router.get("/overlays/formats")
+def list_import_formats() -> dict[str, Any]:
+    """Every format name import_overlay accepts -- built-in and any
+    installed plug-in alike, indistinguishable in this list by design
+    (docs/specs/plugin-api.md, decision 0014). Registered before
+    /overlays/{overlay_id} so "formats" is never matched as an id."""
+    return {"formats": _list_importers(), "meta": meta()}
 
 
 @router.get("/overlays/{overlay_id}")

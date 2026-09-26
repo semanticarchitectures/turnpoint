@@ -15,6 +15,8 @@ sources (by `SOURCES.md` ID), the mapping to the Turnpoint plan model, and open 
   numbered assumption rather than invented silently (decision 0012).
 - [`scenario-format.md`](scenario-format.md): scenario file format and
   score report shape for `turnpoint.scenario` (decision 0013).
+- [`plugin-api.md`](plugin-api.md): the import-format plug-in registry
+  and entry-point contract (decision 0014).
 
 `fv-local-points-import.md` is not written and no importer exists for
 that file: no public documentation of its structure was found at all

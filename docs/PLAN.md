@@ -51,7 +51,7 @@ format maps to and from.
 | 0. Foundations | Verified capability and format inventory, source log, repo and rules, plan model v0 | Inventory confirmed or corrected; plan model reviewed | – |
 | 1. Plan a route | GeoTIFF and CADRG tiles, DTED queries, route model and leg math, MCP tools, minimal viewer | An agent plans a terrain-clear route between two airfields from a one-paragraph tasking; a human sees it on the map | Done (2026-09-22) — see `scenarios/phase1-demo/` |
 | 2. Exchange | FAA aero data overlay; drawing and local point import with fidelity reports; KML, GeoJSON, GPX | Sample files import with a fidelity report and an agent uses the imported overlays | Done (2026-09-24) — see `scenarios/phase2-demo/`; FalconView drawing import is best-effort with documented assumptions (decision 0012); local points import and class airspace deferred (no public documentation / Phase 3, respectively) |
-| 3. Threat and terrain | Line-of-sight, masking, notional threats, MIL-STD-2525 symbols, plug-in API, scenario scorer | Two agent systems run one scenario and get comparable scores | – |
+| 3. Threat and terrain | Line-of-sight, masking, notional threats, MIL-STD-2525 symbols, plug-in API, scenario scorer | Two agent systems run one scenario and get comparable scores | Done (2026-09-26) — see `scenarios/phase3-demo/`; scorer checks terrain clearance, timing and threat exposure but not airspace (no class-airspace overlay exists yet, decision 0013); plug-in API covers import formats only (decision 0014) |
 | 4. Breadth | Track feeds, print products, chart updates, labeling, route file import, FalconView file writing if needed | Demand-driven | – |
 
 Estimate: Phases 0 and 1 in roughly 6 to 8 weeks elapsed with one architect at half-time

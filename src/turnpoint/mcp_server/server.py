@@ -16,7 +16,8 @@ from turnpoint.aero import get_airport as _get_airport
 from turnpoint.aero import get_navaid as _get_navaid
 from turnpoint.aero import list_airports_near as _list_airports_near
 from turnpoint.core import Route, Turnpoint, fidelity_report_dict, meta
-from turnpoint.formats import import_fv_drawing, import_geojson, import_gpx, import_kml
+from turnpoint.formats import get_importer as _get_importer
+from turnpoint.formats import list_importers as _list_importers
 from turnpoint.geodesy import METERS_PER_NM
 from turnpoint.geodesy import destination_point as _destination_point
 from turnpoint.geodesy import range_bearing as _range_bearing
@@ -41,13 +42,6 @@ mcp = MCPServer("turnpoint", instructions=NOT_FOR_OPERATIONAL_USE, version=__ver
 _store = open_default_store()
 _overlay_store = open_default_overlay_store()
 _threat_store = open_default_threat_store()
-
-_IMPORTERS = {
-    "geojson": import_geojson,
-    "gpx": import_gpx,
-    "kml": import_kml,
-    "fv-drawing": import_fv_drawing,
-}
 
 
 def _turnpoints_from_dicts(turnpoints: list[dict[str, Any]]) -> list[Turnpoint]:
@@ -239,16 +233,19 @@ def terrain_profile(
 def import_overlay(format: str, path: str, name: str, actor: str) -> dict[str, Any]:
     """Import a file as an Overlay (docs/specs/plan-model.md "v2 additions").
 
-    ``format`` is currently one of: geojson, gpx, kml, fv-drawing. Returns
-    the persisted overlay and a fidelity report naming anything the
-    importer could not fully interpret — never silent data loss
-    (AGENTS.md section 4). fv-drawing is a best-effort importer built
-    from partial public documentation (docs/specs/fv-drawing-import.md,
-    decision 0012) — expect a low-fidelity result on a real file.
+    ``format`` is one of ``list_import_formats()``'s names -- the four
+    built-in ones (geojson, gpx, kml, fv-drawing) plus any installed
+    plug-in (docs/specs/plugin-api.md, decision 0014). Returns the
+    persisted overlay and a fidelity report naming anything the importer
+    could not fully interpret — never silent data loss (AGENTS.md
+    section 4). fv-drawing is a best-effort importer built from partial
+    public documentation (docs/specs/fv-drawing-import.md, decision
+    0012) — expect a low-fidelity result on a real file.
     """
-    importer = _IMPORTERS.get(format)
-    if importer is None:
-        raise ValueError(f"unsupported format: {format}")
+    try:
+        importer = _get_importer(format)
+    except KeyError as exc:
+        raise ValueError(str(exc)) from exc
     features, fidelity_report = importer(path)
     overlay = _overlay_store.create_overlay(
         name, features, source_format=format, source_path=path, actor=actor
@@ -271,6 +268,14 @@ def get_overlay(overlay_id: str) -> dict[str, Any]:
 def list_overlays() -> dict[str, Any]:
     """List every persisted overlay."""
     return {"overlays": [asdict(o) for o in _overlay_store.list_overlays()], "meta": meta()}
+
+
+@mcp.tool()
+def list_import_formats() -> dict[str, Any]:
+    """Every format name ``import_overlay`` accepts -- built-in and any
+    installed plug-in alike, indistinguishable in this list by design
+    (docs/specs/plugin-api.md, decision 0014)."""
+    return {"formats": _list_importers(), "meta": meta()}
 
 
 @mcp.tool()
