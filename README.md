@@ -61,6 +61,7 @@ Read these before contributing, whether you are a person or an AI assistant:
 - [`CLEAN_ROOM.md`](CLEAN_ROOM.md): what may and may not be consulted
 - [`SOURCES.md`](SOURCES.md): log of every external source used
 - [`docs/PLAN.md`](docs/PLAN.md): scope, phasing and open decisions
+- [`docs/real-data-setup.md`](docs/real-data-setup.md): running Turnpoint against real public chart, terrain and airport data instead of the demos' synthetic fixtures
 
 ## License
 
