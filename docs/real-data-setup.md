@@ -2,16 +2,41 @@
 
 Turnpoint ships with **no data at all** (`data/` is git-ignored by
 design — decision 0011) and never fetches anything automatically except
-when you explicitly run one of the two fetch scripts below. Every demo
-in `scenarios/` uses synthetic coordinates and a synthetic terrain
-raster. This guide is for pointing Turnpoint at a real place with real
-public data instead, to get as close as this project gets to
-operational realism.
+when you explicitly run one of the fetch scripts below. Every demo in
+`scenarios/` uses synthetic coordinates and a synthetic terrain raster.
+This guide is for pointing Turnpoint at a real place with real public
+data instead, to get as close as this project gets to operational
+realism.
 
 **It still does not get you to operational realism.** Read
 ["What stays simulated"](#what-stays-simulated-even-with-all-of-this) at
 the end before you trust anything it produces. The banner on every
 surface — "Not for operational use" — is accurate, not boilerplate.
+
+## Quick path: one command for all three
+
+`scripts/fetch_real_demo_data.py` (decision 0016) runs the chart, DEM
+and NASR steps below in one go, defaulting to the Washington, DC area:
+
+```bash
+python scripts/fetch_real_demo_data.py --nasr-cycle 2026-09-03   # use the actual current cycle
+```
+
+Or a different area:
+
+```bash
+python scripts/fetch_real_demo_data.py \
+  --geoname "San Francisco" --bbox -122.6,37.6,-122.3,37.9 \
+  --nasr-cycle 2026-09-03
+```
+
+`--nasr-cycle` has no default — browse the [NASR subscription
+page](https://www.faa.gov/air_traffic/flight_info/aeronav/aero_data/NASR_Subscription/)
+to find the real current one (decision 0011: never guess). Everything
+lands in `data/real-demo/`. The NASR step is best-effort — its download
+URL was inferred, not confirmed (see the script's own docstring); if it
+fails, it prints the exact manual steps from section 3 below. Read on
+for what each step does and how to do it by hand.
 
 ## What you'll assemble
 
