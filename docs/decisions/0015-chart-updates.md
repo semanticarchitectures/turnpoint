@@ -50,14 +50,18 @@ tested against a real captured response (S-015's fixture,
 `opener` so tests never touch the network, consistent with the rest of
 the suite.
 
-**Verification gap, stated plainly:** this development environment has
-no general outbound network access (confirmed: a direct `curl` to the
-API failed at the DNS/connect level; only the sandboxed `WebFetch`/
-`WebSearch` tools could reach it). The API calls and XML parsing were
-verified against real, live responses fetched through those tools. The
-actual download-and-unzip path was **not** exercised against a real FAA
-zip file — the script's docstring says so. Run it once for real and
-check the output before relying on it operationally.
+**Verification gap, later closed:** at the time this decision was
+written, a direct `curl` from this development environment to
+`soa.smext.faa.gov` failed at the connect level, so the API calls and
+XML parsing were verified only through the sandboxed `WebFetch`/
+`WebSearch` tools, and the actual download-and-unzip path was never
+exercised against a real FAA zip. That `curl` failure turned out to be
+because `soa.smext.faa.gov` itself is dead (S-014's older documented
+base), not a sandbox-wide network restriction — general outbound access
+was available all along. Confirmed 2026-09-28, running the script for
+real: it downloaded an actual ~60MB Washington sectional GeoTIFF (plus
+its `.tfw` and `.htm`), and `rasterio` opened it correctly with its
+real Lambert Conformal Conic / NAD83 CRS.
 
 ## Consequences
 

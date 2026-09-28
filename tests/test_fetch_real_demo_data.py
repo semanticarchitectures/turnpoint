@@ -5,11 +5,19 @@ parse_dem_export_response is tested against a real captured USGS 3DEP
 response (SOURCES.md S-016). Every network call takes an injectable
 opener so these tests never touch the network, same convention as
 test_fetch_faa_chart.py.
+
+test_direct_invocation_does_not_crash_on_import is a real subprocess
+run, deliberately not using an injected import path -- decision 0016's
+own postmortem: the unit tests below all passed while the script's own
+documented `python scripts/fetch_real_demo_data.py` invocation raised
+ModuleNotFoundError, because nothing exercised the actual command line.
 """
 
 from __future__ import annotations
 
 import io
+import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
@@ -187,6 +195,23 @@ def test_main_reports_all_three_sections(tmp_path: Path, monkeypatch, capsys):
     assert "512x512" in out
     assert "Airports/navaids:" in out
     assert "APT_BASE.csv" in out
+
+
+# --- real subprocess invocation (the class of bug the unit tests above miss) ---
+
+
+def test_direct_invocation_does_not_crash_on_import(tmp_path: Path):
+    script = Path(__file__).resolve().parents[1] / "scripts" / "fetch_real_demo_data.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "--help"],
+        cwd=tmp_path,  # not the repo root -- the bug didn't care, the fix shouldn't either
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "ModuleNotFoundError" not in result.stderr
+    assert "usage:" in result.stdout
 
 
 def test_main_nasr_failure_prints_manual_fallback(tmp_path: Path, monkeypatch, capsys):

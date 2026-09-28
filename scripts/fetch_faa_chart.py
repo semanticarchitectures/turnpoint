@@ -23,10 +23,10 @@ dted_source or list_airports_near's nasr_cycle are already named in
 every MCP/API response.
 
 Network verification: the /vfr/sectional/info and /chart endpoints were
-confirmed live on 2026-09-26 (SOURCES.md S-015). The download-and-unzip
-path in this script has NOT been exercised against a real FAA zip file
-in development -- this environment has no general outbound network
-access. Do one real run and check the output before relying on this.
+confirmed live on 2026-09-26 (SOURCES.md S-015), and the full
+download-and-unzip path was exercised for real on 2026-09-28 -- a real
+Washington sectional (a ~60MB GeoTIFF plus its .tfw and .htm) came back,
+and rasterio opened it with its real Lambert Conformal Conic CRS.
 """
 
 from __future__ import annotations

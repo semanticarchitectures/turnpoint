@@ -49,7 +49,12 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from scripts.fetch_faa_chart import (
+# `python scripts/fetch_real_demo_data.py` (not `python -m ...`) puts only
+# scripts/ on sys.path, not the repo root -- add it so the cross-script
+# import below resolves regardless of how this is invoked.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from scripts.fetch_faa_chart import (  # noqa: E402
     ApraError,
     _default_opener,
     _Opener,

@@ -78,3 +78,28 @@ fallback). Skipping NASR from this script entirely (rejected: worth one
 best-effort attempt since the pattern is a real, if unconfirmed, lead —
 succeeding sometimes is strictly better than never trying, as long as
 failure is loud and never mistaken for success).
+
+## Verified, and one real bug found and fixed
+
+Ran for real on 2026-09-28 (the user's own machine, not the sandbox
+this was written in): the chart and terrain steps both downloaded real
+files — a ~60MB Washington sectional GeoTIFF and a real ~4MB USGS DEM,
+both opened correctly by `rasterio` with their real CRSes (Lambert
+Conformal Conic/NAD83 for the chart, EPSG:4326 for the DEM, elevations
+a plausible -0.6 to 77m for the DC-area test bbox). The NASR guess
+reached the real server and got a real 404 — reachable, wrong path,
+exactly the "fail loud, fall back to instructions" behavior this was
+designed for.
+
+The first real run also hit an actual bug this decision's own testing
+missed: `from scripts.fetch_faa_chart import ...` only resolves under
+`python -m` or pytest (which this repo sets `pythonpath = ["."]` for) —
+plain `python scripts/fetch_real_demo_data.py`, the exact form this
+file's own usage examples show, put only `scripts/`, not the repo root,
+on `sys.path`, so the import failed immediately with
+`ModuleNotFoundError`. Fixed by inserting the repo root onto `sys.path`
+at the top of the script before that import, so it works exactly as
+documented regardless of invocation style. Lesson: an injectable-opener
+unit test suite proves the logic works, not that the file runs the way
+its own docstring tells someone to run it — that needs an actual
+subprocess invocation, which the test suite didn't have.
