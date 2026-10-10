@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fetch real public data for a demo area: a FAA VFR sectional chart, a
-USGS 3DEP terrain raster and (best-effort) a FAA NASR airport/navaid CSV
-extract (docs/real-data-setup.md, docs/decisions/0016-real-demo-data-script.md).
+USGS 3DEP terrain raster and a FAA NASR airport/navaid CSV extract
+(docs/real-data-setup.md, docs/decisions/0016-real-demo-data-script.md).
 
 A standalone operational tool, same shape and same reasoning as
 scripts/fetch_faa_chart.py (decision 0015): not part of turnpoint's
@@ -26,16 +26,13 @@ to find the current one.
 Writes into data/real-demo/:
     chart/<geoname>_<edition>/...   -- from fetch_faa_chart
     dem.tif                          -- USGS 3DEP terrain (GeoTIFF)
-    nasr/APT_BASE.csv, NAV_BASE.csv  -- if the best-effort fetch works
+    nasr/APT_BASE.csv, NAV_BASE.csv  -- FAA NASR per-table CSV extracts
 
-Verification: the chart and DEM steps call APIs confirmed live on
-2026-09-26/2026-09-28 respectively (SOURCES.md S-015/S-016), but chart
-download-and-unzip was never exercised end to end (see
-fetch_faa_chart.py's own docstring). The NASR zip URL is an inferred
-guess, never confirmed to resolve (SOURCES.md S-017) -- every direct
-fetch against faa.gov 403'd in this development environment. It either
-works or fails with instructions; treat a NASR success here as a nice
-surprise, not a guarantee.
+Verification: all three steps call APIs/URLs confirmed live and
+exercised end to end on 2026-09-28/2026-10-10 (SOURCES.md S-015/S-016/
+S-018) -- including the NASR per-table zip URLs, found by fetching the
+real subscription page with curl (not guessed) after the original
+guessed URL in this script turned out to 404.
 """
 
 from __future__ import annotations
@@ -47,6 +44,7 @@ import sys
 import urllib.parse
 import zipfile
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 # `python scripts/fetch_real_demo_data.py` (not `python -m ...`) puts only
@@ -66,11 +64,15 @@ DEM_API_BASE = (
     "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage"
 )
 NASR_PAGE_BASE = "https://www.faa.gov/air_traffic/flight_info/aeronav/aero_data/NASR_Subscription"
+# The per-table CSV zips (SOURCES.md S-018) -- small (single-digit MB),
+# unlike the ~250MB full 28-day subscription zip that page also links.
+NASR_CSV_BASE = "https://nfdc.faa.gov/webContent/28DaySub/extra"
 OUTPUT_DIR = Path(__file__).resolve().parents[1] / "data" / "real-demo"
 
 DEFAULT_GEONAME = "Washington"
 DEFAULT_BBOX = "-77.1,38.7,-77.0,38.8"
-NASR_FILES = {"APT_BASE.csv", "NAV_BASE.csv"}
+# filename -> FAA's short table code, used in the per-table zip's name
+NASR_TABLES = {"APT_BASE.csv": "APT", "NAV_BASE.csv": "NAV"}
 
 
 class DemError(RuntimeError):
@@ -127,42 +129,56 @@ def download_dem(export: DemExport, dest_path: Path, *, opener: _Opener = _defau
     return dest_path
 
 
-def nasr_zip_url(cycle: str) -> str:
-    """Inferred, not independently confirmed -- SOURCES.md S-017."""
-    return f"{NASR_PAGE_BASE}/{cycle}/28DaySubscription_Effective_{cycle}.zip"
+def nasr_table_zip_url(cycle: str, table: str) -> str:
+    """URL for one NASR table's standalone CSV zip (SOURCES.md S-018).
 
-
-def fetch_nasr_csvs(cycle: str, dest_dir: Path, *, opener: _Opener = _default_opener) -> list[Path]:
-    """Best-effort download of APT_BASE.csv/NAV_BASE.csv for ``cycle``.
-
-    Raises ``NasrFetchFailed`` on any network problem, malformed zip, or
-    a zip that doesn't contain the two files this looks for -- never a
-    silent partial result.
+    ``cycle`` is ``YYYY-MM-DD``; ``table`` is the FAA's short table code
+    (e.g. ``"APT"``, ``"NAV"``). Raises ``NasrFetchFailed`` if ``cycle``
+    isn't a valid date.
     """
-    url = nasr_zip_url(cycle)
     try:
-        with opener(url, timeout=120) as resp:
+        date = datetime.strptime(cycle, "%Y-%m-%d").strftime("%d_%b_%Y")
+    except ValueError as exc:
+        raise NasrFetchFailed(f"--nasr-cycle must be YYYY-MM-DD, got {cycle!r}") from exc
+    return f"{NASR_CSV_BASE}/{date}_{table}_CSV.zip"
+
+
+def _fetch_one_nasr_table(
+    cycle: str, filename: str, table: str, dest_dir: Path, *, opener: _Opener
+) -> Path:
+    url = nasr_table_zip_url(cycle, table)
+    try:
+        with opener(url, timeout=60) as resp:
             zip_bytes = resp.read()
     except OSError as exc:
         raise NasrFetchFailed(f"could not fetch {url}: {exc}") from exc
 
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
-            written: list[Path] = []
-            for name in zf.namelist():
-                base = Path(name).name
-                if base not in NASR_FILES:
-                    continue
-                dest_dir.mkdir(parents=True, exist_ok=True)
-                out_path = dest_dir / base
-                out_path.write_bytes(zf.read(name))
-                written.append(out_path)
+            matches = [n for n in zf.namelist() if Path(n).name == filename]
+            if not matches:
+                raise NasrFetchFailed(f"{url} did not contain {filename}")
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            out_path = dest_dir / filename
+            out_path.write_bytes(zf.read(matches[0]))
     except zipfile.BadZipFile as exc:
         raise NasrFetchFailed(f"{url} did not return a valid zip: {exc}") from exc
+    return out_path
 
-    if not written:
-        raise NasrFetchFailed(f"{url} did not contain {sorted(NASR_FILES)}")
-    return written
+
+def fetch_nasr_csvs(cycle: str, dest_dir: Path, *, opener: _Opener = _default_opener) -> list[Path]:
+    """Download APT_BASE.csv and NAV_BASE.csv for ``cycle``, one small
+    per-table zip each (confirmed live, SOURCES.md S-018) rather than the
+    FAA's ~250MB full 28-day subscription zip.
+
+    Raises ``NasrFetchFailed`` on any network problem, malformed zip, or
+    a zip that doesn't contain the file it was fetched for -- never a
+    silent partial result.
+    """
+    return [
+        _fetch_one_nasr_table(cycle, filename, table, dest_dir, opener=opener)
+        for filename, table in NASR_TABLES.items()
+    ]
 
 
 def _fetch_chart(geoname: str, edition: str) -> None:
@@ -204,9 +220,8 @@ def _fetch_nasr(cycle: str) -> None:
     except NasrFetchFailed as exc:
         print(f"  Automated fetch failed: {exc}")
         print(
-            f"  Download it yourself from {NASR_PAGE_BASE}/{cycle}/ "
-            f"(browse there first -- the guessed URL above isn't confirmed) "
-            f"and copy APT_BASE.csv/NAV_BASE.csv into {nasr_dir}/"
+            f"  Browse {NASR_PAGE_BASE}/{cycle}/ to confirm that cycle date is "
+            f"real, then download APT_BASE.csv/NAV_BASE.csv yourself into {nasr_dir}/"
         )
 
 

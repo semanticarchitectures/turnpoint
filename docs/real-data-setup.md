@@ -33,9 +33,10 @@ python scripts/fetch_real_demo_data.py \
 `--nasr-cycle` has no default — browse the [NASR subscription
 page](https://www.faa.gov/air_traffic/flight_info/aeronav/aero_data/NASR_Subscription/)
 to find the real current one (decision 0011: never guess). Everything
-lands in `data/real-demo/`. The NASR step is best-effort — its download
-URL was inferred, not confirmed (see the script's own docstring); if it
-fails, it prints the exact manual steps from section 3 below. Read on
+lands in `data/real-demo/`. All three steps, including NASR, are
+confirmed working end to end (decision 0016); if the NASR cycle date
+you gave isn't real, it prints the exact manual steps from section 3
+below instead of failing silently. Read on
 for what each step does and how to do it by hand.
 
 ## What you'll assemble
@@ -124,8 +125,11 @@ Subscription](https://www.faa.gov/air_traffic/flight_info/aeronav/Aero_Data/NASR
 browse to the current dated folder (it refreshes every 28 days; decision
 0011 is explicit that Turnpoint never guesses which cycle is "current,"
 so neither should you — read the date off the page) and download the
-CSV data set. Inside it, `turnpoint.aero.nasr` reads exactly two files
-by name:
+CSV data set, or just run `scripts/fetch_real_demo_data.py` (above),
+which downloads the much smaller per-table zips directly from
+`nfdc.faa.gov` (decision 0016, SOURCES.md S-018) instead of the ~250MB
+full subscription zip the page's main link points to. Either way,
+`turnpoint.aero.nasr` reads exactly two files by name:
 
 - `APT_BASE.csv` — airports (`turnpoint.aero.parse_airports`)
 - `NAV_BASE.csv` — navaids (`turnpoint.aero.parse_navaids`)

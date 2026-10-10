@@ -1,4 +1,4 @@
-# 0016. Real demo data script: compose chart + DEM fetch, NASR stays best-effort
+# 0016. Real demo data script: compose chart, DEM and NASR fetch
 
 - Status: accepted
 - Date: 2026-09-28
@@ -103,3 +103,29 @@ documented regardless of invocation style. Lesson: an injectable-opener
 unit test suite proves the logic works, not that the file runs the way
 its own docstring tells someone to run it — that needs an actual
 subprocess invocation, which the test suite didn't have.
+
+## NASR fixed: the real zip host, found by fetching the real page
+
+The NASR guess's 404 (above) was the next thing fixed, 2026-10-10.
+Fetching the real subscription page directly with `curl` (not
+`WebFetch`, which still 403s on `www.faa.gov` — a different tool, a
+different fingerprint) turned up the actual download links: a 252MB
+full 28-day subscription zip at `nfdc.faa.gov` (a different host
+entirely from the `www.faa.gov` guess in S-017), and much smaller
+**per-table** zips at `https://nfdc.faa.gov/webContent/28DaySub/extra/
+<DD>_<Mon>_<YYYY>_<TABLE>_CSV.zip` — e.g. `03_Sep_2026_APT_CSV.zip`,
+8MB, vs. 252MB for everything. `fetch_nasr_csvs` now fetches one small
+zip per table (`APT`, `NAV`) instead of guessing at one combined zip
+that never existed at that path. Confirmed end to end, for real: both
+zips downloaded, `APT_BASE.csv`/`NAV_BASE.csv` extracted, and
+`turnpoint.aero.list_airports_near` parsed the real `APT_BASE.csv`
+correctly — 26 real DC-area airports and heliports, including DCA,
+`fully_faithful: True` (SOURCES.md S-018).
+
+All three data sources this script fetches are now confirmed working
+end to end, not inferred or best-effort. The "Alternatives considered"
+section above (don't guess harder, ship best-effort instead) was the
+right call for what was knowable at the time — the honest best-effort
+version shipped a working, correctly-diagnosed failure instead of a
+silently wrong success, and that's what made the real fix findable in
+one more research pass instead of a harder debugging session.

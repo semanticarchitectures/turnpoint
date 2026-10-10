@@ -30,7 +30,7 @@ from scripts.fetch_real_demo_data import (
     download_dem,
     fetch_dem,
     fetch_nasr_csvs,
-    nasr_zip_url,
+    nasr_table_zip_url,
     parse_dem_export_response,
 )
 
@@ -91,13 +91,24 @@ def test_download_dem_writes_bytes(tmp_path: Path):
 
 
 # --- NASR --------------------------------------------------------------
+#
+# Confirmed live 2026-10-10 (SOURCES.md S-018) by fetching the real NASR
+# subscription page with curl and finding its actual per-table zip links
+# -- the original guessed URL (a different host entirely) 404'd.
 
 
-def test_nasr_zip_url_pattern():
-    assert nasr_zip_url("2026-09-03") == (
-        "https://www.faa.gov/air_traffic/flight_info/aeronav/aero_data/"
-        "NASR_Subscription/2026-09-03/28DaySubscription_Effective_2026-09-03.zip"
+def test_nasr_table_zip_url_pattern():
+    assert nasr_table_zip_url("2026-09-03", "APT") == (
+        "https://nfdc.faa.gov/webContent/28DaySub/extra/03_Sep_2026_APT_CSV.zip"
     )
+    assert nasr_table_zip_url("2026-09-03", "NAV") == (
+        "https://nfdc.faa.gov/webContent/28DaySub/extra/03_Sep_2026_NAV_CSV.zip"
+    )
+
+
+def test_nasr_table_zip_url_rejects_bad_cycle_format():
+    with pytest.raises(NasrFetchFailed, match="YYYY-MM-DD"):
+        nasr_table_zip_url("09/03/2026", "APT")
 
 
 def _make_zip(files: dict[str, bytes]) -> bytes:
@@ -108,24 +119,23 @@ def _make_zip(files: dict[str, bytes]) -> bytes:
     return buf.getvalue()
 
 
-def test_fetch_nasr_csvs_extracts_only_the_two_files(tmp_path: Path):
-    zip_bytes = _make_zip(
-        {
-            "CSV_Data/APT_BASE.csv": b"apt-data",
-            "CSV_Data/NAV_BASE.csv": b"nav-data",
-            "CSV_Data/FRQ_BASE.csv": b"frq-data",
-            "readme.txt": b"readme",
-        }
-    )
+def test_fetch_nasr_csvs_fetches_one_zip_per_table(tmp_path: Path):
+    apt_zip = _make_zip({"APT DATA LAYOUT.pdf": b"pdf", "APT_BASE.csv": b"apt-data"})
+    nav_zip = _make_zip({"NAV_BASE.csv": b"nav-data", "NAV_RMK.csv": b"rmk-data"})
+    zips_by_url = {
+        nasr_table_zip_url("2026-09-03", "APT"): apt_zip,
+        nasr_table_zip_url("2026-09-03", "NAV"): nav_zip,
+    }
 
     def fake_opener(url: str, timeout: float) -> _FakeResponse:
-        return _FakeResponse(zip_bytes)
+        return _FakeResponse(zips_by_url[url])
 
     written = fetch_nasr_csvs("2026-09-03", tmp_path / "nasr", opener=fake_opener)
 
     names = {p.name for p in written}
     assert names == {"APT_BASE.csv", "NAV_BASE.csv"}
     assert (tmp_path / "nasr" / "APT_BASE.csv").read_bytes() == b"apt-data"
+    assert (tmp_path / "nasr" / "NAV_BASE.csv").read_bytes() == b"nav-data"
 
 
 def test_fetch_nasr_csvs_raises_on_network_failure():
@@ -144,7 +154,7 @@ def test_fetch_nasr_csvs_raises_on_bad_zip():
         fetch_nasr_csvs("2026-09-03", Path("/tmp/unused"), opener=fake_opener)
 
 
-def test_fetch_nasr_csvs_raises_when_files_missing():
+def test_fetch_nasr_csvs_raises_when_file_missing_from_zip():
     zip_bytes = _make_zip({"readme.txt": b"nothing useful here"})
 
     def fake_opener(url: str, timeout: float) -> _FakeResponse:
@@ -243,4 +253,4 @@ def test_main_nasr_failure_prints_manual_fallback(tmp_path: Path, monkeypatch, c
 
     out = capsys.readouterr().out
     assert "Automated fetch failed: boom" in out
-    assert "Download it yourself" in out
+    assert "download APT_BASE.csv/NAV_BASE.csv yourself" in out
