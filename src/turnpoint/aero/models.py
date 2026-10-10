@@ -27,3 +27,25 @@ class Navaid:
     lon: float
     elevation_ft: float | None
     nasr_cycle: str
+
+
+@dataclass(frozen=True)
+class Airspace:
+    ident: str
+    name: str
+    airspace_class: str
+    type_code: str
+    local_type: str
+    boundary: list[tuple[float, float]]
+    """(lat, lon) ring -- the exterior ring only; see docs/specs/aero-data.md
+    "Open gaps" for multi-part (hole) polygons."""
+    upper_val: float | None
+    upper_uom: str
+    upper_code: str
+    upper_desc: str
+    lower_val: float | None
+    lower_uom: str
+    lower_code: str
+    lower_desc: str
+    exclusion: bool
+    nasr_cycle: str

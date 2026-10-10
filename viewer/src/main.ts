@@ -9,6 +9,7 @@
 // Phase 1 has no bundled chart data).
 
 import type { Feature, FeatureCollection, Geometry } from "geojson";
+import type { ExpressionSpecification } from "maplibre-gl";
 import { LngLatBounds, Map as MapLibreMap, Marker, NavigationControl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import ms from "milsymbol";
@@ -73,11 +74,38 @@ interface ThreatResponse {
   threat: Threat;
 }
 
+interface Airspace {
+  ident: string;
+  name: string;
+  airspace_class: string;
+  type_code: string;
+  local_type: string;
+  boundary: [number, number][]; // (lat, lon) pairs, same convention as OverlayFeature
+  upper_val: number | null;
+  upper_uom: string;
+  upper_code: string;
+  upper_desc: string;
+  lower_val: number | null;
+  lower_uom: string;
+  lower_code: string;
+  lower_desc: string;
+  exclusion: boolean;
+}
+
+interface ClassAirspaceResponse {
+  airspace: Airspace[];
+}
+
 const params = new URLSearchParams(location.search);
 const apiBase = params.get("api") ?? "http://127.0.0.1:8123";
 const planId = params.get("plan");
 const overlayId = params.get("overlay");
 const threatIds = (params.get("threats") ?? "").split(",").filter((id) => id.length > 0);
+// lat,lon,radius_nm -- a spatial query, not a stored id (class airspace
+// isn't fetched by id the way an overlay/threat is; decision 0017).
+const airspaceQuery = params.get("airspace");
+const airspaceShapefileSource = params.get("airspace_shapefile_source");
+const airspaceNasrCycle = params.get("airspace_nasr_cycle");
 const tileSource = params.get("tiles");
 
 const statusEl = document.getElementById("status") as HTMLDivElement;
@@ -446,6 +474,101 @@ function renderThreats(threats: Threat[]): [number, number][] {
   ]);
 }
 
+function latLonCentroid(coords: [number, number][]): [number, number] {
+  const n = coords.length;
+  const sumLat = coords.reduce((s, [lat]) => s + lat, 0);
+  const sumLon = coords.reduce((s, [, lon]) => s + lon, 0);
+  return [sumLon / n, sumLat / n];
+}
+
+function formatAltitude(val: number | null, uom: string, code: string, desc: string): string {
+  if (val !== null) {
+    return `${val} ${uom}`;
+  }
+  return code || desc || "?";
+}
+
+// Loosely follows real sectional chart convention (blue for B/D, magenta
+// for C/E) without trying to be an exact reproduction -- the point is
+// airspace reads as airspace, distinct from the route/overlay/threat
+// layers already on the map, the same "never reads as another layer"
+// rule M18/M23/M27 already established.
+const AIRSPACE_COLOR_EXPR: ExpressionSpecification = [
+  "match",
+  ["get", "airspace_class"],
+  "B",
+  "#2563eb",
+  "C",
+  "#db2777",
+  "D",
+  "#2563eb",
+  "E",
+  "#db2777",
+  "#6b7280",
+];
+
+function renderClassAirspace(airspaces: Airspace[]): [number, number][] {
+  if (airspaces.length === 0) {
+    return [];
+  }
+  const polygons: FeatureCollection = {
+    type: "FeatureCollection",
+    features: airspaces.map((a) => ({
+      type: "Feature",
+      properties: {
+        name: a.name,
+        airspace_class: a.airspace_class,
+        altitude: `${formatAltitude(a.lower_val, a.lower_uom, a.lower_code, a.lower_desc)} - ${formatAltitude(a.upper_val, a.upper_uom, a.upper_code, a.upper_desc)}`,
+      },
+      geometry: { type: "Polygon", coordinates: [a.boundary.map(([lat, lon]) => [lon, lat])] },
+    })),
+  };
+  map.addSource("class-airspace", { type: "geojson", data: polygons });
+  map.addLayer({
+    id: "class-airspace-fill",
+    type: "fill",
+    source: "class-airspace",
+    paint: { "fill-color": AIRSPACE_COLOR_EXPR, "fill-opacity": 0.08 },
+  });
+  map.addLayer({
+    id: "class-airspace-outline-solid",
+    type: "line",
+    source: "class-airspace",
+    filter: ["in", ["get", "airspace_class"], ["literal", ["B", "C"]]],
+    paint: { "line-color": AIRSPACE_COLOR_EXPR, "line-width": 2 },
+  });
+  map.addLayer({
+    id: "class-airspace-outline-dashed",
+    type: "line",
+    source: "class-airspace",
+    filter: ["!", ["in", ["get", "airspace_class"], ["literal", ["B", "C"]]]],
+    paint: { "line-color": AIRSPACE_COLOR_EXPR, "line-width": 1.5, "line-dasharray": [3, 2] },
+  });
+
+  map.addSource("class-airspace-labels", {
+    type: "geojson",
+    data: {
+      type: "FeatureCollection",
+      features: airspaces.map((a) => ({
+        type: "Feature",
+        properties: {
+          label: `${a.name} (${a.airspace_class}) ${formatAltitude(a.lower_val, a.lower_uom, a.lower_code, a.lower_desc)}-${formatAltitude(a.upper_val, a.upper_uom, a.upper_code, a.upper_desc)}`,
+        },
+        geometry: { type: "Point", coordinates: latLonCentroid(a.boundary) },
+      })),
+    },
+  });
+  map.addLayer({
+    id: "class-airspace-labels",
+    type: "symbol",
+    source: "class-airspace-labels",
+    layout: { "text-field": ["get", "label"], "text-size": 10 },
+    paint: textHalo("#374151"),
+  });
+
+  return airspaces.flatMap((a) => a.boundary.map(([lat, lon]) => [lon, lat] as [number, number]));
+}
+
 function fitBoundsTo(allCoordinates: [number, number][]): void {
   if (allCoordinates.length === 0) {
     return;
@@ -466,9 +589,10 @@ async function fetchJSON<T>(path: string): Promise<T> {
 }
 
 async function loadAll(): Promise<void> {
-  if (!planId && !overlayId && threatIds.length === 0) {
+  if (!planId && !overlayId && threatIds.length === 0 && !airspaceQuery) {
     statusEl.textContent =
-      "Nothing to show. Add ?plan=<id> and/or ?overlay=<id> and/or ?threats=<id,id,...> to the URL.";
+      "Nothing to show. Add ?plan=<id> and/or ?overlay=<id> and/or ?threats=<id,id,...> " +
+      "and/or ?airspace=<lat,lon,radius_nm> to the URL.";
     return;
   }
 
@@ -517,6 +641,32 @@ async function loadAll(): Promise<void> {
     }
     if (failures.length > 0) {
       statusParts.push(`Failed to load ${failures.length} threat(s): ${failures.join(", ")}`);
+    }
+  }
+
+  if (airspaceQuery) {
+    const parts = airspaceQuery.split(",").map(Number);
+    if (parts.length !== 3 || parts.some(Number.isNaN) || !airspaceShapefileSource || !airspaceNasrCycle) {
+      statusParts.push(
+        "Invalid ?airspace= query -- need lat,lon,radius_nm plus " +
+          "&airspace_shapefile_source=<file> and &airspace_nasr_cycle=<cycle>",
+      );
+    } else {
+      const [lat, lon, radiusNm] = parts;
+      try {
+        const query = new URLSearchParams({
+          lat: String(lat),
+          lon: String(lon),
+          radius_nm: String(radiusNm),
+          shapefile_source: airspaceShapefileSource,
+          nasr_cycle: airspaceNasrCycle,
+        });
+        const data = await fetchJSON<ClassAirspaceResponse>(`/aero/airspace?${query}`);
+        allCoordinates.push(...renderClassAirspace(data.airspace));
+        statusParts.push(`${data.airspace.length} class airspace polygon(s)`);
+      } catch (err) {
+        statusParts.push(`Failed to load class airspace: ${(err as Error).message}`);
+      }
     }
   }
 

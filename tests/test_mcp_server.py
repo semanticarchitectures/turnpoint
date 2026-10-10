@@ -40,6 +40,7 @@ def test_tools_are_registered():
         "get_overlay",
         "list_overlays",
         "list_airports_near",
+        "list_class_airspace_near",
         "get_airport",
         "get_navaid",
         "line_of_sight",
@@ -186,6 +187,27 @@ def test_list_airports_near_names_nasr_cycle():
     )
     assert {a["ident"] for a in out["airports"]} == {"TP01", "TP02"}
     assert out["meta"]["nasr_cycle"] == NASR_CYCLE
+
+
+CLASS_AIRSPACE_FIXTURE = Path(__file__).parent / "fixtures" / "class_airspace" / "sample.shp"
+
+
+def test_list_class_airspace_near_names_cycle():
+    out = server.list_class_airspace_near(
+        37.6, -122.3, 50.0, str(CLASS_AIRSPACE_FIXTURE), NASR_CYCLE
+    )
+    assert {a["name"] for a in out["airspace"]} == {"SAN FRANCISCO CLASS B"}
+    assert out["meta"]["nasr_cycle"] == NASR_CYCLE
+
+
+def test_list_class_airspace_near_flags_multipart_fidelity_issue():
+    # SOUTH FLORIDA LOW's boundary centroid, the fixture's one multi-part
+    # (hole) record.
+    out = server.list_class_airspace_near(
+        26.24, -77.28, 5.0, str(CLASS_AIRSPACE_FIXTURE), NASR_CYCLE
+    )
+    assert any(a["name"] == "SOUTH FLORIDA LOW" for a in out["airspace"])
+    assert out["fidelity_report"]["fully_faithful"] is False
 
 
 def test_get_airport():

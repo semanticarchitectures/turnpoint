@@ -23,6 +23,7 @@ Add a row **before** adding the dependency. Verify the license at the pinned ver
 | milsymbol 3.0.4 | MIL-STD-2525/APP6 symbol rendering for `viewer/` (threat `sidc`, M23) | MIT | 2026-09-26, from `license` field and `LICENSE`-equivalent in the installed package's own `package.json`, read directly | Runtime (browser); logged after the fact — should have been added before `npm install`, see `AGENTS.md` rule 3 |
 | reportlab 5.0.x | PDF rendering for `src/turnpoint/products` (route card, Phase 4 "print products") | BSD-3-Clause-style | 2026-09-26, from `licenses/LICENSE` in the installed wheel's dist-info, read directly, not from the `METADATA` summary line alone | Runtime; built with `invariant=1` for byte-reproducible output (AGENTS.md section 6) |
 | Pillow 12.x | Image handling; a transitive dependency reportlab imports directly (`reportlab.lib.utils`) | MIT-CMU | 2026-09-26, from `License-Expression: MIT-CMU` and `licenses/LICENSE` in the installed wheel's dist-info, read directly | Runtime; not imported by Turnpoint code itself, logged because reportlab cannot run without it |
+| pyshp (`shapefile`) 3.1.x | Reads FAA Class Airspace ESRI Shapefiles for `src/turnpoint/aero/class_airspace.py` | MIT | 2026-10-10, from `License-Expression: MIT` and `licenses/LICENSE.TXT` in the installed wheel's dist-info, read directly | Runtime; pure Python, no GDAL/OGR binding needed — see decision 0017 |
 
 Planned, not yet added: pyproj, Shapely, mgrs.
 Do not add GPL or LGPL components, or non-commercial data such as

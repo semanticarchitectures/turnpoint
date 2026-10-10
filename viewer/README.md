@@ -31,6 +31,15 @@ Query params:
   ring plus a MIL-STD-2525 symbol from its `sidc` (a plain marker if it
   has none) with its name labeled underneath, so a notional threat never
   reads as a flight plan or overlay.
+- `airspace` — a `lat,lon,radius_nm` spatial query for real FAA class
+  airspace (decision 0017), plus `airspace_shapefile_source` (the `.shp`
+  filename under `data/`) and `airspace_nasr_cycle` (required, never
+  inferred — decision 0011); all three are needed together. Renders as
+  filled polygons loosely following real sectional chart convention
+  (blue for B/D, magenta for C/E — solid for B/C, dashed for D/E), each
+  labeled with its name, class and floor/ceiling (the FAA's raw
+  `upper_code`/`lower_code`, e.g. `SFC`/`MSL`, not resolved to a single
+  absolute-MSL number — see `docs/specs/aero-data.md` "Open gaps").
 - `api` — the API base URL (default `http://127.0.0.1:8123`).
 - `tiles` — a tile source name to layer in as a raster basemap from the
   API's `/tiles` endpoint (optional; Phase 1/2 ship no bundled chart

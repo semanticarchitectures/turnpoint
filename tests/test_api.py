@@ -490,6 +490,48 @@ def test_list_airports_near(client: TestClient, tmp_path: Path):
     assert body["meta"]["nasr_cycle"] == NASR_CYCLE
 
 
+CLASS_AIRSPACE_FIXTURES = Path(__file__).parent / "fixtures" / "class_airspace"
+
+
+def _copy_class_airspace_fixture(tmp_path: Path) -> None:
+    for ext in ("shp", "dbf", "shx", "prj"):
+        src = CLASS_AIRSPACE_FIXTURES / f"sample.{ext}"
+        (tmp_path / f"sample.{ext}").write_bytes(src.read_bytes())
+
+
+def test_list_class_airspace_near(client: TestClient, tmp_path: Path):
+    _copy_class_airspace_fixture(tmp_path)
+    resp = client.get(
+        "/aero/airspace",
+        params={
+            "lat": 37.6,
+            "lon": -122.3,
+            "radius_nm": 50.0,
+            "shapefile_source": "sample.shp",
+            "nasr_cycle": NASR_CYCLE,
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert {a["name"] for a in body["airspace"]} == {"SAN FRANCISCO CLASS B"}
+    assert body["meta"]["nasr_cycle"] == NASR_CYCLE
+    assert body["airspace"][0]["airspace_class"] == "B"
+
+
+def test_list_class_airspace_near_missing_file_404(client: TestClient, tmp_path: Path):
+    resp = client.get(
+        "/aero/airspace",
+        params={
+            "lat": 37.6,
+            "lon": -122.3,
+            "radius_nm": 50.0,
+            "shapefile_source": "does-not-exist.shp",
+            "nasr_cycle": NASR_CYCLE,
+        },
+    )
+    assert resp.status_code == 404
+
+
 def test_get_airport(client: TestClient, tmp_path: Path):
     (tmp_path / "apt.csv").write_text((NASR_FIXTURES / "apt_base_sample.csv").read_text())
     resp = client.get(

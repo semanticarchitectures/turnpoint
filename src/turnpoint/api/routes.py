@@ -11,12 +11,14 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+import shapefile
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from turnpoint.aero import get_airport as _get_airport
 from turnpoint.aero import get_navaid as _get_navaid
 from turnpoint.aero import list_airports_near as _list_airports_near
+from turnpoint.aero import list_class_airspace_near as _list_class_airspace_near
 from turnpoint.core import fidelity_report_dict, meta
 from turnpoint.core.route import Turnpoint
 from turnpoint.formats import get_importer as _get_importer
@@ -409,6 +411,30 @@ def list_airports_near(
         "airports": [asdict(a) for a in airports],
         "fidelity_report": fidelity_report_dict(fidelity_report),
         "meta": meta(nasr_source=nasr_source, nasr_cycle=nasr_cycle),
+    }
+
+
+@router.get("/aero/airspace")
+def list_class_airspace_near(
+    lat: float, lon: float, radius_nm: float, shapefile_source: str, nasr_cycle: str
+) -> dict[str, Any]:
+    """Class B/C/D/E airspace within radius_nm of (lat, lon), from a named
+    FAA Class Airspace shapefile (decision 0017). shapefile_source is a
+    filename (the .shp) under DATA_DIR; nasr_cycle is required (decision
+    0011). Floor/ceiling fields are the FAA's raw values, not resolved to
+    absolute MSL -- see docs/specs/aero-data.md "Open gaps."
+    """
+    path = _resolve_data_path(shapefile_source)
+    try:
+        airspaces, fidelity_report = _list_class_airspace_near(
+            lat, lon, radius_nm, path, nasr_cycle
+        )
+    except shapefile.ShapefileException as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "airspace": [asdict(a) for a in airspaces],
+        "fidelity_report": fidelity_report_dict(fidelity_report),
+        "meta": meta(shapefile_source=shapefile_source, nasr_cycle=nasr_cycle),
     }
 
 

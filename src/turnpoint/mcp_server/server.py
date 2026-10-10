@@ -16,6 +16,7 @@ from turnpoint import NOT_FOR_OPERATIONAL_USE, __version__
 from turnpoint.aero import get_airport as _get_airport
 from turnpoint.aero import get_navaid as _get_navaid
 from turnpoint.aero import list_airports_near as _list_airports_near
+from turnpoint.aero import list_class_airspace_near as _list_class_airspace_near
 from turnpoint.core import Route, Turnpoint, fidelity_report_dict, meta
 from turnpoint.formats import get_importer as _get_importer
 from turnpoint.formats import list_importers as _list_importers
@@ -422,6 +423,28 @@ def get_airport(ident: str, nasr_source: str, nasr_cycle: str) -> dict[str, Any]
     return {
         "airport": asdict(airport),
         "meta": meta(nasr_source=nasr_source, nasr_cycle=nasr_cycle),
+    }
+
+
+@mcp.tool()
+def list_class_airspace_near(
+    lat: float, lon: float, radius_nm: float, shapefile_source: str, nasr_cycle: str
+) -> dict[str, Any]:
+    """Class B/C/D/E airspace within radius_nm of (lat, lon), from a named
+    FAA Class Airspace shapefile (decision 0017). ``nasr_cycle`` is
+    required and named in every result, same discipline as
+    list_airports_near. Floor/ceiling fields (upper_val/lower_val etc.)
+    are the FAA's raw values, not resolved to absolute MSL -- see
+    docs/specs/aero-data.md "Open gaps." airspace_checked in a scenario
+    score is still always false; this tool doesn't change that.
+    """
+    airspaces, fidelity_report = _list_class_airspace_near(
+        lat, lon, radius_nm, shapefile_source, nasr_cycle
+    )
+    return {
+        "airspace": [asdict(a) for a in airspaces],
+        "fidelity_report": fidelity_report_dict(fidelity_report),
+        "meta": meta(shapefile_source=shapefile_source, nasr_cycle=nasr_cycle),
     }
 
 

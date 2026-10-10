@@ -1,8 +1,8 @@
-# Aero data (FAA NASR)
+# Aero data (FAA NASR and Class Airspace)
 
-Airport and navaid data from the FAA's public 28-Day NASR Subscription
-CSV files. Not FalconView-derived — this is Turnpoint's own mapping onto
-a public government data format, so `CLEAN_ROOM.md`'s FalconView-specific
+Airport, navaid and class airspace data from FAA public sources. Not
+FalconView-derived — this is Turnpoint's own mapping onto public
+government data formats, so `CLEAN_ROOM.md`'s FalconView-specific
 sourcing procedure does not apply, but the general "cite your sources"
 discipline (`AGENTS.md` §3) does.
 
@@ -12,6 +12,10 @@ discipline (`AGENTS.md` §3) does.
   **2026-08-06** — pinned deliberately (see "Determinism" below).
 - `SOURCES.md` S-010: `APT_BASE.csv` column layout (openNASR).
 - `SOURCES.md` S-011: `NAV_BASE.csv` column layout (openNASR).
+- `SOURCES.md` S-019: FAA AIS Open Data Dictionary — `Boundary Airspace`
+  feature class field schema.
+- `SOURCES.md` S-020: the Class Airspace shapefile itself, live
+  download, real sample records.
 
 Both `APT_BASE.csv` and `NAV_BASE.csv` have far more columns than
 Turnpoint models (106 for `APT_BASE.csv` alone) — only what's needed for
@@ -44,7 +48,37 @@ criterion) is modeled. See "Open gaps."
 `elevation_ft` (`ELEV`), `nasr_cycle` — same shape and rationale as
 `Airport`.
 
-## Parsing (`src/turnpoint/aero/nasr.py`)
+**Airspace** — one record of the Class Airspace shapefile
+(`SOURCES.md` S-019/S-020, decision 0017):
+
+- `ident: str`, `name: str` — `IDENT`/`NAME`.
+- `airspace_class: str` — `CLASS` (`"B"`/`"C"`/`"D"`/`"E"`), FAA's raw
+  value.
+- `type_code: str`, `local_type: str` — `TYPE_CODE` (always `"CLASS"`
+  for this shapefile), `LOCAL_TYPE` (e.g. `"CLASS_E5"` for a
+  surface-based Class E extension).
+- `boundary: list[tuple[float, float]]` — `(lat, lon)` ring, the
+  exterior ring only (see "Open gaps").
+- `upper_val`/`lower_val: float | None`, `upper_uom`/`lower_uom: str`,
+  `upper_code`/`lower_code: str`, `upper_desc`/`lower_desc: str` —
+  `UPPER_VAL`/`UPPER_UOM`/`UPPER_CODE`/`UPPER_DESC` and the `LOWER_*`
+  equivalents, **kept as the FAA's raw fields, not resolved to a single
+  absolute-MSL number** (same "keep raw codes" precedent as
+  `site_type`/`facility_use` above) — `*_code` is one of `MSL`/`STD`/
+  `SFC`/`UNLTD`, `*_uom` is `FT`/`FL`, `*_desc` qualifies how the value
+  applies (`TI` "to and including," `AA` "and above," etc. — the full
+  domain is in S-019). `*_val` is `None` when the source's `*_uom` and
+  `*_code` are both blank — the FAA's own placeholder for "not
+  applicable" (observed as a `-9998` sentinel in the raw shapefile,
+  SOURCES.md S-020), not a real altitude.
+- `exclusion: bool` — `EXCLUSION`; `true` means this polygon is an
+  excluded area *within* another airspace record, not controlled
+  airspace in its own right.
+- `nasr_cycle: str` — same caller-supplied, never-inferred convention as
+  `Airport`/`Navaid`, since the shapefile comes from the same dated
+  28-day subscription folder.
+
+## Parsing (`src/turnpoint/aero/nasr.py`, `class_airspace.py`)
 
 `parse_airports(path, nasr_cycle)` and `parse_navaids(path, nasr_cycle)`
 each return `(list[Airport | Navaid], FidelityReport)`. A row missing
@@ -60,6 +94,20 @@ fields, seen even in the self-made test fixtures's edge-case rows.
 `get_navaid(ident, ...)` look up by `ident` (or `icao_id` for airports),
 raising `KeyError` if not found — the same not-found convention as
 `PlanStore.get_plan`/`OverlayStore.get_overlay`.
+
+`parse_class_airspace(path, nasr_cycle)` reads the Class Airspace
+shapefile (`path` is the `.shp` file; `pyshp` finds the sibling
+`.dbf`/`.shx` by the same basename) into `(list[Airspace],
+FidelityReport)` (`format` `"class-airspace-shapefile"`). A record with
+no boundary geometry is skipped. A record with more than one polygon
+part (a hole, or multiple disjoint rings under one `NAME`) keeps only
+the first (exterior) ring and is named in the `FidelityReport` — same
+precedent as `turnpoint.formats.geojson`'s polygon-hole handling, never
+a silent simplification (`AGENTS.md` §4). `list_class_airspace_near(lat,
+lon, radius_nm, path, nasr_cycle)` filters by great-circle distance to
+each boundary's arithmetic-mean centroid — a coarse placement, not true
+point-in-polygon distance (same approximation the viewer already makes
+for overlay polygon labels, M27).
 
 ## Determinism
 
@@ -77,9 +125,22 @@ network itself.
   the FAA's raw codes rather than a translated enum — revisit if a
   concrete consumer needs runway data, frequencies, or the full code
   tables.
-- `parse_airports`/`parse_navaids` re-parse the whole file on every call,
-  with no caching or spatial index. Fine for Phase 2's small, self-made
-  fixture CSVs; a real 28-day extract (tens of thousands of rows) would
-  want an index before this is anything but a demonstration.
-- Class airspace (`docs/decisions/0010`'s Phase 2 research notes) is
-  explicitly out of scope here — recommended for Phase 3.
+- `parse_airports`/`parse_navaids`/`parse_class_airspace` re-parse the
+  whole file on every call, with no caching or spatial index. Fine for
+  Phase 2's small, self-made fixture CSVs and decision 0017's
+  reasoning; a real 28-day extract or the real 5612-record Class
+  Airspace shapefile would want an index before this is anything but a
+  demonstration.
+- Class airspace boundaries are imported and queryable (decision 0017)
+  but not resolved to a single absolute-MSL floor/ceiling, and nothing
+  in `turnpoint.scenario`'s scorer checks a route against them yet —
+  `ScoreReport.airspace_checked` stays `false`. Two real problems block
+  that: `LOWER_CODE: SFC` needs a terrain lookup to become absolute MSL
+  (ground elevation varies), and `STD`-referenced altitudes need an
+  altimeter setting Turnpoint has no weather data to supply. Revisit
+  once there's an actual design for route-vs-3D-volume intersection,
+  not before.
+- `parse_class_airspace` keeps only each record's exterior ring; 9 of
+  5612 real nationwide records are multi-part (a hole or a second
+  disjoint ring under the same `NAME`) and lose that detail, flagged in
+  the `FidelityReport` each time.

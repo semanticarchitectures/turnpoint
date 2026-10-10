@@ -1,8 +1,10 @@
-"""Airports and navaids from public FAA NASR data (docs/specs/aero-data.md).
-Airspace (class B/C/D/etc, SUA) is deferred -- see decision 0010's research
-notes and docs/PLAN.md Phase 3."""
+"""Airports, navaids and class airspace from public FAA data
+(docs/specs/aero-data.md). Class airspace boundaries are imported and
+queryable; route scoring against them (altitude-aware intersection) is
+not built yet -- see decision 0017."""
 
-from turnpoint.aero.models import Airport, Navaid
+from turnpoint.aero.class_airspace import list_class_airspace_near, parse_class_airspace
+from turnpoint.aero.models import Airport, Airspace, Navaid
 from turnpoint.aero.nasr import (
     get_airport,
     get_navaid,
@@ -13,10 +15,13 @@ from turnpoint.aero.nasr import (
 
 __all__ = [
     "Airport",
+    "Airspace",
     "Navaid",
     "get_airport",
     "get_navaid",
     "list_airports_near",
+    "list_class_airspace_near",
     "parse_airports",
+    "parse_class_airspace",
     "parse_navaids",
 ]
