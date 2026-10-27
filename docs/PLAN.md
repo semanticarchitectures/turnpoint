@@ -1,6 +1,7 @@
 # Turnpoint project plan
 
-As of 2026-09-21. Decisions are recorded individually in `docs/decisions/`.
+As of 2026-09-21; goals, scope and Phases 5–7 revised 2026-10-26 by decision 0018 (proposed).
+Decisions are recorded individually in `docs/decisions/`.
 
 ## Purpose
 
@@ -10,7 +11,15 @@ C++ desktop application with COM extension points. The gap Turnpoint fills is an
 mission planning tool whose whole planning surface is available to software agents.
 
 Goals: (1) demonstrate AI-assisted development, with the repo history as evidence;
-(2) give agentic systems a deterministic, scoreable mission planning testbed.
+(2) give agentic systems a deterministic, scoreable mission planning testbed;
+(3) be an open reference for the software between **unmanned** mission plans and the Air
+Operations Center (AOC), planned in volume (decision 0018). Unmanned aircraft are the primary
+use; crewed planning stays supported. FalconView import stays as built but is no longer the
+yardstick.
+
+Turnpoint is a component of the [Acquisition Knowledge System](https://github.com/semanticarchitectures/acquisition-knowledge-system)
+and carries its demonstration milestone D4: an unmanned plan reaching the AOC as UCI messages
+over a degraded simulated network, approved by a human.
 
 ## Scope
 
@@ -20,9 +29,16 @@ elevation query, profile, line-of-sight and masking; coordinate tools (lat/long,
 UTM, magnetic variation); import of FalconView drawing and local point files; import
 and export of KML, GeoJSON and GPX; API and MCP server for every operation.
 
+Added by decision 0018 (Phases 5–7): notional uncrewed vehicle classes and parametric
+envelopes; per-plan autonomy envelopes (geofence, altitude block, time window); lost-link and
+contingency points; batch planning and deconfliction across plans; export of plans to the AOC as
+UCI messages from public Open Arsenal schemas.
+
 Out: COM or plug-in binary parity; PFPS, JMPS or XPlan integration; aircraft-specific
 performance and weapons planning; real threat parameters; any CUI or classified data;
-writing FalconView files (deferred until a user needs it); operational certification.
+writing FalconView files (deferred until a user needs it); operational certification;
+real UAS performance or datalink parameters; sending control commands to any vehicle, real or
+simulated (Turnpoint plans, the AOC approves, Turnpoint never commands).
 
 ## Architecture
 
@@ -52,7 +68,10 @@ format maps to and from.
 | 1. Plan a route | GeoTIFF and CADRG tiles, DTED queries, route model and leg math, MCP tools, minimal viewer | An agent plans a terrain-clear route between two airfields from a one-paragraph tasking; a human sees it on the map | Done (2026-09-22) — see `scenarios/phase1-demo/` |
 | 2. Exchange | FAA aero data overlay; drawing and local point import with fidelity reports; KML, GeoJSON, GPX | Sample files import with a fidelity report and an agent uses the imported overlays | Done (2026-09-24) — see `scenarios/phase2-demo/`; FalconView drawing import is best-effort with documented assumptions (decision 0012); local points import and class airspace deferred (no public documentation / Phase 3, respectively) |
 | 3. Threat and terrain | Line-of-sight, masking, notional threats, MIL-STD-2525 symbols, plug-in API, scenario scorer | Two agent systems run one scenario and get comparable scores | Done (2026-09-26) — see `scenarios/phase3-demo/`; scorer checks terrain clearance, timing and threat exposure but not airspace (no class-airspace overlay exists yet, decision 0013); plug-in API covers import formats only (decision 0014) |
-| 4. Breadth | Track feeds, print products, chart updates, labeling, route file import, FalconView file writing if needed | Demand-driven | – |
+| 4. Breadth | Track feeds, print products, chart updates, labeling, route file import, FalconView file writing if needed | Demand-driven; ranks below Phases 5–7 (decision 0018) | – |
+| 5. Unmanned plan model | Plan model extension for uncrewed vehicles: notional classes, autonomy envelope, lost-link and contingency points, launch and recovery, comms plan naming GMNS link types | An agent plans a notional uncrewed ISR mission; the scorer checks envelope containment | Proposed (AKS baseline Sep–Dec 2027) |
+| 6. Batch planning and deconfliction | Many plans at once, deconflicted in space and time against each other and against airspace | A batch of concurrent plans is deconflicted deterministically and the scorer reports every conflict; batch size set by the AKS scale target | Proposed (Jan–Mar 2028) |
+| 7. AOC handoff over UCI | Plans exported as schema-valid UCI mapped to AOC-DFO message classes, carried over GMNS; tasking and status received back | A plan reaches the simulated AOC as valid UCI over a degraded network and the acknowledgment returns | Proposed (Mar–May 2028) |
 
 Estimate: Phases 0 and 1 in roughly 6 to 8 weeks elapsed with one architect at half-time
 directing an AI coding agent; Phase 2 roughly 2 to 4 more weeks. Judgment estimates only.
@@ -75,5 +94,7 @@ directing an AI coding agent; Phase 2 roughly 2 to 4 more weeks. Judgment estima
   outcome as `fv-local-points-import.md`. Deferred until documentation surfaces;
   Turnpoint's own route schema (`docs/specs/route-schema.md`) remains primary.
 - Relationship to ENCAP and the program office knowledge base: separate repos, one-directional use.
+- Decision 0018 open items: first notional vehicle classes; Phase 6 batch size (the AKS scale
+  target); Open Arsenal UCI schema license, recorded in `docs/THIRD_PARTY.md` before use.
 - Trademark search on "Turnpoint" before the first tagged release.
 - Short export-control review before the first tagged release.
