@@ -64,3 +64,15 @@ Turnpoint is an independent, Apache 2.0 implementation. To keep it that way:
 - Record architectural decisions in `docs/decisions/` using the template there.
 - Keep the AI-assisted development trail: meaningful commit messages, and keep the
   `Co-Authored-By` trailer when an assistant wrote the change.
+
+## 7. Umbrella context (Acquisition Knowledge System)
+
+- Turnpoint is a component of the Acquisition Knowledge System:
+  https://github.com/semanticarchitectures/acquisition-knowledge-system. Before cross-component
+  work, read its `.kiro/steering/product.md` and `portfolio.md`.
+- Shared contracts and the shared ontology are defined in the umbrella. Do not redefine them here.
+  Plans exported to the AOC use AOC-DFO's message classes; UCI encoding comes from the shared codec
+  package, not a second implementation (AKS ADR 0008).
+- **Turnpoint plans; it never commands a vehicle**, real or simulated. Plans go to the AOC for human
+  approval (decision 0018).
+- Tasks tagged for this repo in umbrella specs land here; cite them by spec and task number.

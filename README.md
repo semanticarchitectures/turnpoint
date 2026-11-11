@@ -1,6 +1,7 @@
 # Turnpoint
 
-Open aircrew mission planning software, built for AI agents first and humans second.
+Open mission planning software for crewed and uncrewed aircraft, built for AI agents first and
+humans second.
 
 Turnpoint is a headless mission planning engine with a Model Context Protocol (MCP)
 server and a web map viewer. Agents plan routes, check terrain and airspace, and
@@ -15,6 +16,19 @@ produce standard artifacts through an API. Humans watch and verify on the map.
    part of the product.
 2. To give agentic systems a shared, deterministic, scoreable environment for
    demonstrating mission planning.
+3. To be an open reference for the software between unmanned mission plans and the Air
+   Operations Center, planned in volume (decision 0018, proposed).
+
+## Part of the Acquisition Knowledge System
+
+Turnpoint is a component of the [Acquisition Knowledge System (AKS)](https://github.com/semanticarchitectures/acquisition-knowledge-system),
+a demonstration of AI architecting and simulating Air Force enterprise operations, at scale and
+realistically, and then being used in that enterprise, safely and under human authority.
+
+Its role in AKS: the mission planning tool agents call over MCP, and the pattern for agents-first
+tool design. It carries AKS milestone D4: an unmanned mission planned here reaches the AOC as UCI
+messages over a degraded simulated network (GMNS), and a human approves it. Cross-component specs
+and decisions live in the umbrella repo.
 
 ## What it is not
 
