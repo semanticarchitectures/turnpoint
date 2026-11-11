@@ -1,6 +1,6 @@
 # 0018. Goal revision: planning for unmanned aircraft, and the interface to the AOC
 
-- Status: proposed (accepted when the pull request that adds it is merged)
+- Status: accepted (2026-11-11, by merging Turnpoint #1)
 - Date: 2026-10-26
 
 ## Context

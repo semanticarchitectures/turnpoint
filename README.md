@@ -17,7 +17,7 @@ produce standard artifacts through an API. Humans watch and verify on the map.
 2. To give agentic systems a shared, deterministic, scoreable environment for
    demonstrating mission planning.
 3. To be an open reference for the software between unmanned mission plans and the Air
-   Operations Center, planned in volume (decision 0018, proposed).
+   Operations Center, planned in volume (decision 0018).
 
 ## Part of the Acquisition Knowledge System
 

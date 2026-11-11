@@ -1,6 +1,6 @@
 # Turnpoint project plan
 
-As of 2026-09-21; goals, scope and Phases 5–7 revised 2026-10-26 by decision 0018 (proposed).
+As of 2026-09-21; goals, scope and Phases 5–7 revised 2026-10-26 by decision 0018 (accepted 2026-11-11).
 Decisions are recorded individually in `docs/decisions/`.
 
 ## Purpose
