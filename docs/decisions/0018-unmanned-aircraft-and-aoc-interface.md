@@ -68,7 +68,8 @@ machine interface to the AOC.
 
 ## Open items for Kevin
 
-- Notional vehicle classes to model first (for example a small tactical UAS and a medium-altitude
-  long-endurance class), all with obviously notional values.
+- Notional vehicle classes to model first. The AKS program CONOPS (contested logistics for
+  humanitarian assistance, 2026-11-08) suggests a notional cargo UAS for resupply first, with an
+  observation class second, all with obviously notional values.
 - The scale target for Phase 6 (how many concurrent plans); this is an open question in the AKS vision.
 - Whether the tagline change in `README.md` is the wording you want.
